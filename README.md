@@ -34,7 +34,7 @@ Zugangsdaten zum Broker kommen aus den Umgebungsvariablen `MQTT_USERNAME` und
 | `meter/{id}/values`  | raus     | Messwerte, einmal pro Poll-Intervall            |
 | `meter/{id}/info`    | raus     | Geräteinfos, bei jedem Verbindungsaufbau        |
 | `meter/{id}/status`  | –        | reserviert, noch nicht verwendet                |
-| `meter/{id}/error`   | –        | reserviert, noch nicht verwendet                |
+| `meter/{id}/error`   | raus     | Erros beim auslesen                             |
 
 Ablauf: Das Programm abonniert `config`. Kommt dort eine Liste von IDs, abonniert
 es `meter/{id}/config` für jede ID. Jede gültige Meter-Config startet den Zähler,
