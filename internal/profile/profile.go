@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	"modbus/internal/measurement"
@@ -94,6 +95,43 @@ func (d DataType) registers() uint16 {
 	}
 }
 
+// checkLength meldet einen Fehler, wenn d unbekannt ist oder nicht length Register belegt.
+func (d DataType) checkLength(length uint16) error {
+	n := d.registers()
+	if n == 0 {
+		return fmt.Errorf("unbekannter dataType %q", d)
+	}
+	if n != length {
+		return fmt.Errorf("dataType %s braucht length %d, nicht %d", d, n, length)
+	}
+	return nil
+}
+
+// format liefert die Big-Endian-Bytes b als Dezimaltext. Ganzzahlen werden
+// exakt formatiert, nicht über float64, damit lange Seriennummern stimmen.
+func (d DataType) format(b []byte) string {
+	switch d {
+	case Int16:
+		return strconv.FormatInt(int64(int16(binary.BigEndian.Uint16(b))), 10)
+	case Uint16:
+		return strconv.FormatUint(uint64(binary.BigEndian.Uint16(b)), 10)
+	case Int32:
+		return strconv.FormatInt(int64(int32(binary.BigEndian.Uint32(b))), 10)
+	case Uint32:
+		return strconv.FormatUint(uint64(binary.BigEndian.Uint32(b)), 10)
+	case Int64:
+		return strconv.FormatInt(int64(binary.BigEndian.Uint64(b)), 10)
+	case Uint64:
+		return strconv.FormatUint(binary.BigEndian.Uint64(b), 10)
+	case Float32:
+		return strconv.FormatFloat(float64(math.Float32frombits(binary.BigEndian.Uint32(b))), 'f', -1, 32)
+	case Float64:
+		return strconv.FormatFloat(math.Float64frombits(binary.BigEndian.Uint64(b)), 'f', -1, 64)
+	default:
+		return ""
+	}
+}
+
 // Register ist der gemeinsame Teil aller Registereinträge.
 type Register struct {
 	Address   uint16                 `json:"address"`
@@ -157,19 +195,38 @@ func (r Register) normalize(raw []byte) ([]byte, error) {
 	return b, nil
 }
 
-// StringRegister ist ein Geräteinfo-Eintrag, der als Text dekodiert wird.
+// StringRegister ist ein Geräteinfo-Eintrag. Ohne DataType wird er als Text
+// dekodiert. Mit DataType wird er als Zahl gelesen und als Dezimaltext
+// geliefert, z. B. für Seriennummern, die ein Gerät als uint32 ablegt.
 type StringRegister struct {
 	Register
+	DataType DataType `json:"dataType,omitzero"`
 }
 
-// Decode wandelt die Rohbytes in einen String; Null-Bytes und Leerzeichen
-// am Rand werden entfernt, da Geräte Strings damit auffüllen.
+func (r StringRegister) validate() error {
+	if err := r.Register.validate(); err != nil {
+		return err
+	}
+	if r.DataType == "" {
+		return nil
+	}
+	return r.DataType.checkLength(r.Length)
+}
+
+// Decode wandelt die Rohbytes in einen String. Bei Text werden Null-Bytes und
+// Leerzeichen am Rand entfernt, da Geräte Strings damit auffüllen.
 func (r StringRegister) Decode(raw []byte) (string, error) {
+	if err := r.validate(); err != nil {
+		return "", err
+	}
 	b, err := r.normalize(raw)
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(strings.Trim(string(b), "\x00")), nil
+	if r.DataType == "" {
+		return strings.TrimSpace(strings.Trim(string(b), "\x00")), nil
+	}
+	return r.DataType.format(b), nil
 }
 
 // NumberRegister ist ein Messwert-Eintrag, der als float64 dekodiert wird.
@@ -185,14 +242,7 @@ func (r NumberRegister) validate() error {
 	if err := r.Register.validate(); err != nil {
 		return err
 	}
-	n := r.DataType.registers()
-	if n == 0 {
-		return fmt.Errorf("unbekannter dataType %q", r.DataType)
-	}
-	if n != r.Length {
-		return fmt.Errorf("dataType %s braucht length %d, nicht %d", r.DataType, n, r.Length)
-	}
-	return nil
+	return r.DataType.checkLength(r.Length)
 }
 
 // Decode wandelt die Rohbytes in einen float64 inklusive Skalierung.

@@ -47,7 +47,8 @@ func TestManagerSetReplaceRemove(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	valuesCh := make(chan []measurement.Value)
 	infoCh := make(chan measurement.DeviceInfo, 10)
-	mg := NewManager(ctx, valuesCh, infoCh)
+	errCh := make(chan measurement.Error, 10)
+	mg := NewManager(ctx, valuesCh, infoCh, errCh)
 
 	if err := mg.Set(&fakeMeter{id: "m1", value: 230}); err != nil {
 		t.Fatal(err)
@@ -85,7 +86,7 @@ func TestManagerSetReplaceRemove(t *testing.T) {
 }
 
 func TestManagerRejectsInvalidConfig(t *testing.T) {
-	mg := NewManager(context.Background(), nil, nil)
+	mg := NewManager(context.Background(), nil, nil, nil)
 	if err := mg.Set(&fakeMeter{id: "x", invalid: true}); err == nil {
 		t.Error("ungültige config sollte abgelehnt werden")
 	}

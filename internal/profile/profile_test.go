@@ -50,7 +50,7 @@ func TestNumberRegisterLengthMismatch(t *testing.T) {
 }
 
 func TestStringRegisterDecode(t *testing.T) {
-	r := StringRegister{Register{Length: 4}}
+	r := StringRegister{Register: Register{Length: 4}}
 	s, err := r.Decode([]byte("SDM630\x00\x00"))
 	if err != nil {
 		t.Fatal(err)
@@ -66,6 +66,50 @@ func TestStringRegisterDecode(t *testing.T) {
 	}
 	if s != "SDM630" {
 		t.Errorf("swapped: got %q", s)
+	}
+}
+
+func TestStringRegisterDecodeNumber(t *testing.T) {
+	cases := []struct {
+		name string
+		reg  StringRegister
+		raw  []byte
+		want string
+	}{
+		{"uint32 Seriennummer", StringRegister{Register: Register{Length: 2}, DataType: Uint32}, []byte{0x00, 0x01, 0xE2, 0x40}, "123456"},
+		{"int16 Firmware", StringRegister{Register: Register{Length: 1}, DataType: Int16}, []byte{0x00, 0xFA}, "250"},
+		{"int16 negativ", StringRegister{Register: Register{Length: 1}, DataType: Int16}, []byte{0xFF, 0xFB}, "-5"},
+		{"uint64 exakt", StringRegister{Register: Register{Length: 4}, DataType: Uint64}, []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, "18446744073709551615"},
+		{"uint32 CDAB", StringRegister{Register: Register{Length: 2, ByteOrder: LittleEndianSwap}, DataType: Uint32}, []byte{0xE2, 0x40, 0x00, 0x01}, "123456"},
+		{"float32", StringRegister{Register: Register{Length: 2}, DataType: Float32}, []byte{0x43, 0x66, 0x80, 0x00}, "230.5"},
+	}
+	for _, c := range cases {
+		s, err := c.reg.Decode(c.raw)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if s != c.want {
+			t.Errorf("%s: got %q, want %q", c.name, s, c.want)
+		}
+	}
+}
+
+func TestProfileValidateDeviceInfoDataType(t *testing.T) {
+	base := func(r StringRegister) Profile {
+		return Profile{
+			DeviceType:  "x",
+			DeviceInfo:  map[DeviceInfoField]StringRegister{SerialNumber: r},
+			MeterValues: map[measurement.Type]NumberRegister{measurement.U1: {Register: Register{Length: 2}, DataType: Float32}},
+		}
+	}
+	if err := base(StringRegister{Register: Register{Length: 1}, DataType: Uint32}).Validate(); err == nil {
+		t.Error("uint32 mit length 1 sollte fehlschlagen")
+	}
+	if err := base(StringRegister{Register: Register{Length: 2}, DataType: "text"}).Validate(); err == nil {
+		t.Error("unbekannter dataType sollte fehlschlagen")
+	}
+	if err := base(StringRegister{Register: Register{Length: 2}, DataType: Uint32}).Validate(); err != nil {
+		t.Errorf("uint32 mit length 2 sollte gültig sein: %v", err)
 	}
 }
 

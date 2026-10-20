@@ -8,6 +8,22 @@
   "timeout": "500ms",
   "profile": {
     "deviceType": "Janitza UMG 96 RM",
+    "deviceInfo": {
+      "firmware": {
+        "address": 750,
+        "length": 1,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "int16"
+      },
+      "serialNumber": {
+        "address": 754,
+        "length": 2,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "uint32"
+      }
+    },
     "meterValues": {
       "U1": {
         "address": 19000,
