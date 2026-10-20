@@ -14,6 +14,7 @@ type Manager struct {
 	ctx      context.Context
 	valuesCh chan<- []measurement.Value
 	infoCh   chan<- measurement.DeviceInfo
+	errCh    chan<- measurement.Error
 
 	mu      sync.Mutex
 	running map[string]*runningMeter
@@ -27,11 +28,12 @@ type runningMeter struct {
 }
 
 // NewManager erzeugt einen leeren Manager. Wird ctx abgebrochen, stoppen alle Meter.
-func NewManager(ctx context.Context, valuesCh chan<- []measurement.Value, infoCh chan<- measurement.DeviceInfo) *Manager {
+func NewManager(ctx context.Context, valuesCh chan<- []measurement.Value, infoCh chan<- measurement.DeviceInfo, errCh chan<- measurement.Error) *Manager {
 	return &Manager{
 		ctx:      ctx,
 		valuesCh: valuesCh,
 		infoCh:   infoCh,
+		errCh:    errCh,
 		running:  make(map[string]*runningMeter),
 	}
 }
@@ -56,7 +58,7 @@ func (mg *Manager) Set(m Meter) error {
 	mg.running[m.MeterID()] = r
 	mg.wg.Go(func() {
 		defer close(r.done)
-		Run(ctx, m, mg.valuesCh, mg.infoCh)
+		Run(ctx, m, mg.valuesCh, mg.infoCh, mg.errCh)
 	})
 	return nil
 }

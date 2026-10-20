@@ -37,7 +37,8 @@ func main() {
 
 	valuesCh := make(chan []measurement.Value)
 	infoCh := make(chan measurement.DeviceInfo)
-	manager := poller.NewManager(ctx, valuesCh, infoCh)
+	errCh := make(chan measurement.Error)
+	manager := poller.NewManager(ctx, valuesCh, infoCh, errCh)
 
 	opts := paho.NewClientOptions().
 		AddBroker(*brokerURL).
@@ -53,7 +54,7 @@ func main() {
 	defer msgHandler.Close()
 
 	// Muss laufen, bevor Meter starten, sonst blockieren sie beim ersten Senden.
-	go forward(ctx, msgHandler, valuesCh, infoCh)
+	go forward(ctx, msgHandler, valuesCh, infoCh, errCh)
 
 	err := msgHandler.Subscribe(broker.TopicConfig, func(m broker.Message) {
 		handleConfig(m, msgHandler, manager)
@@ -69,7 +70,7 @@ func main() {
 
 // forward gibt Messwerte und Geräteinfos aus den Channels an den Broker
 // weiter, bis ctx abgebrochen wird.
-func forward(ctx context.Context, msgHandler broker.MessageHandler, valuesCh <-chan []measurement.Value, infoCh <-chan measurement.DeviceInfo) {
+func forward(ctx context.Context, msgHandler broker.MessageHandler, valuesCh <-chan []measurement.Value, infoCh <-chan measurement.DeviceInfo, errCh <-chan measurement.Error) {
 	for {
 		select {
 		case vals := <-valuesCh:
@@ -79,6 +80,8 @@ func forward(ctx context.Context, msgHandler broker.MessageHandler, valuesCh <-c
 			publishJSON(msgHandler, broker.TopicMeterValues.ForMeter(vals[0].MeterID), vals)
 		case info := <-infoCh:
 			publishJSON(msgHandler, broker.TopicMeterInfo.ForMeter(info.MeterID), info)
+		case err := <-errCh:
+			publishJSON(msgHandler, broker.TopicMeterError.ForMeter(err.MeterID), err)
 		case <-ctx.Done():
 			return
 		}

@@ -88,3 +88,10 @@ type DeviceInfo struct {
 	Model        string `json:"model,omitempty"`
 	Firmware     string `json:"firmware,omitempty"`
 }
+
+// Error
+type Error struct {
+	MeterID   string    `json:"meterId"`
+	Message   string    `json:"message"`
+	Timestamp time.Time `json:"timestamp"`
+}
