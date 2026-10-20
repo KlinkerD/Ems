@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "id": "umg96rm-1",
+  "host": "localhost",
+  "port": 502,
+  "unitId": 1,
+  "pollingInterval": "1s",
+  "timeout": "500ms",
+  "profile": {
+    "deviceType": "Janitza UMG 96 RM",
+    "meterValues": {
+      "U1": {
+        "address": 19000,
+        "length": 2,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "float32"
+      },
+      "U2": {
+        "address": 19002,
+        "length": 2,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "float32"
+      },
+      "U3": {
+        "address": 19004,
+        "length": 2,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "float32"
+      },
+      "I1": {
+        "address": 19012,
+        "length": 2,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "float32"
+      },
+      "I2": {
+        "address": 19014,
+        "length": 2,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "float32"
+      },
+      "I3": {
+        "address": 19016,
+        "length": 2,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "float32"
+      },
+      "P1": {
+        "address": 19020,
+        "length": 2,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "float32"
+      },
+      "P2": {
+        "address": 19022,
+        "length": 2,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "float32"
+      },
+      "P3": {
+        "address": 19024,
+        "length": 2,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "float32"
+      },
+      "S1": {
+        "address": 19028,
+        "length": 2,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "float32"
+      },
+      "S2": {
+        "address": 19030,
+        "length": 2,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "float32"
+      },
+      "S3": {
+        "address": 19032,
+        "length": 2,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "float32"
+      },
+      "Q1": {
+        "address": 19036,
+        "length": 2,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "float32"
+      },
+      "Q2": {
+        "address": 19038,
+        "length": 2,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "float32"
+      },
+      "Q3": {
+        "address": 19040,
+        "length": 2,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "float32"
+      },
+      "ActiveEnergyImported": {
+        "address": 19068,
+        "length": 2,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "float32"
+      },
+      "ActiveEnergyExported": {
+        "address": 19076,
+        "length": 2,
+        "byteOrder": "ABCD",
+        "registerType": "holding",
+        "dataType": "float32"
+      }
+    }
+  }
+}

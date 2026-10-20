@@ -1,0 +1,107 @@
+package meters
+
+import (
+	"context"
+	"sync"
+
+	"modbus/meters/values"
+)
+
+// Manager hält die aktiven Meter als map[ID] und startet bzw. stoppt ihre
+// Poll-Goroutinen, wenn Configs zur Laufzeit hinzukommen, ersetzt oder
+// entfernt werden.
+type Manager struct {
+	ctx      context.Context
+	valuesCh chan<- []values.MeterValue
+	infoCh   chan<- values.DeviceInfo
+
+	mu      sync.Mutex
+	running map[string]*runningMeter
+	wg      sync.WaitGroup
+}
+
+type runningMeter struct {
+	meter  PollableMeter
+	cancel context.CancelFunc
+	done   chan struct{}
+}
+
+// NewManager erzeugt einen leeren Manager. Wird ctx abgebrochen, stoppen alle Meter.
+func NewManager(ctx context.Context, valuesCh chan<- []values.MeterValue, infoCh chan<- values.DeviceInfo) *Manager {
+	return &Manager{
+		ctx:      ctx,
+		valuesCh: valuesCh,
+		infoCh:   infoCh,
+		running:  make(map[string]*runningMeter),
+	}
+}
+
+// Set startet den Meter oder ersetzt eine bestehende Config mit derselben ID.
+// Der alte Meter ist gestoppt, bevor der neue startet, damit nie zwei
+// Verbindungen zum selben Gerät offen sind. m darf danach nicht mehr verändert werden.
+func (mg *Manager) Set(m PollableMeter) error {
+	if err := m.Validate(); err != nil {
+		return err
+	}
+	mg.mu.Lock()
+	defer mg.mu.Unlock()
+	if err := mg.ctx.Err(); err != nil {
+		return err
+	}
+
+	mg.stopLocked(m.MeterID())
+
+	ctx, cancel := context.WithCancel(mg.ctx)
+	r := &runningMeter{meter: m, cancel: cancel, done: make(chan struct{})}
+	mg.running[m.MeterID()] = r
+	mg.wg.Go(func() {
+		defer close(r.done)
+		Run(ctx, m, mg.valuesCh, mg.infoCh)
+	})
+	return nil
+}
+
+// Remove stoppt den Meter und entfernt ihn. Liefert false, wenn die ID unbekannt ist.
+func (mg *Manager) Remove(id string) bool {
+	mg.mu.Lock()
+	defer mg.mu.Unlock()
+	return mg.stopLocked(id)
+}
+
+func (mg *Manager) stopLocked(id string) bool {
+	r, ok := mg.running[id]
+	if !ok {
+		return false
+	}
+	r.cancel()
+	<-r.done
+	delete(mg.running, id)
+	return true
+}
+
+// Get liefert die aktive Config zu einer ID.
+func (mg *Manager) Get(id string) (PollableMeter, bool) {
+	mg.mu.Lock()
+	defer mg.mu.Unlock()
+	r, ok := mg.running[id]
+	if !ok {
+		return nil, false
+	}
+	return r.meter, true
+}
+
+// Meters liefert eine Kopie der aktiven map[ID]Config.
+func (mg *Manager) Meters() map[string]PollableMeter {
+	mg.mu.Lock()
+	defer mg.mu.Unlock()
+	out := make(map[string]PollableMeter, len(mg.running))
+	for id, r := range mg.running {
+		out[id] = r.meter
+	}
+	return out
+}
+
+// Wait blockiert, bis alle Meter-Goroutinen beendet sind (nach Abbruch von ctx).
+func (mg *Manager) Wait() {
+	mg.wg.Wait()
+}
