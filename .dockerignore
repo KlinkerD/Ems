@@ -1,0 +1,10 @@
+.git
+.idea
+*.exe
+*.test
+*.out
+.env
+.env.*
+Dockerfile
+.dockerignore
+README.md
