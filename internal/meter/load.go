@@ -1,15 +1,16 @@
-package meters
+package meter
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 )
 
-// ParseMeter dekodiert und prüft eine einzelne Meter-Config, z. B. aus einer
+// Parse dekodiert und prüft eine einzelne Meter-Config, z. B. aus einer
 // Datei oder einer MQTT-Nachricht.
-func ParseMeter(data []byte) (*ModbusMeter, error) {
+func Parse(data []byte) (*ModbusMeter, error) {
 	var m ModbusMeter
 	if err := json.Unmarshal(data, &m); err != nil {
 		return nil, err
@@ -20,28 +21,28 @@ func ParseMeter(data []byte) (*ModbusMeter, error) {
 	return &m, nil
 }
 
-// LoadMeter liest eine Meter-Config aus einer Datei.
-func LoadMeter(path string) (*ModbusMeter, error) {
+// Load liest eine Meter-Config aus einer Datei.
+func Load(path string) (*ModbusMeter, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	m, err := ParseMeter(data)
+	m, err := Parse(data)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	return m, nil
 }
 
-// LoadMeters liest alle *.json-Dateien eines Verzeichnisses, eine pro Meter.
-func LoadMeters(dir string) (map[string]*ModbusMeter, error) {
+// LoadDir liest alle *.json-Dateien eines Verzeichnisses, eine pro Meter.
+func LoadDir(dir string) (map[string]*ModbusMeter, error) {
 	paths, err := filepath.Glob(filepath.Join(dir, "*.json"))
 	if err != nil {
 		return nil, err
 	}
 	meters := make(map[string]*ModbusMeter, len(paths))
 	for _, p := range paths {
-		m, err := LoadMeter(p)
+		m, err := Load(p)
 		if err != nil {
 			return nil, err
 		}
@@ -57,7 +58,7 @@ func LoadMeters(dir string) (map[string]*ModbusMeter, error) {
 // und nicht erst beim ersten Poll.
 func (m *ModbusMeter) Validate() error {
 	if m.ID == "" {
-		return fmt.Errorf("id fehlt")
+		return errors.New("id fehlt")
 	}
 	if m.Host == "" {
 		return fmt.Errorf("meter %s: host fehlt", m.ID)

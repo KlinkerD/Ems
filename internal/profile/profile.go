@@ -1,4 +1,6 @@
-package meters
+// Package profile beschreibt herstellerabhängig, in welchen Modbus-Registern
+// welche Werte liegen, und dekodiert deren Rohbytes.
+package profile
 
 import (
 	"encoding/binary"
@@ -6,17 +8,18 @@ import (
 	"math"
 	"strings"
 
-	"modbus/meters/values"
+	"modbus/internal/measurement"
+	"modbus/internal/modbustcp"
 )
 
 // Profile beschreibt herstellerabhängig, wo welcher Wert im Gerät liegt.
 type Profile struct {
 	DeviceType  string                              `json:"deviceType"`
 	DeviceInfo  map[DeviceInfoField]StringRegister  `json:"deviceInfo,omitempty"`
-	MeterValues map[values.ValueType]NumberRegister `json:"meterValues"`
+	MeterValues map[measurement.Type]NumberRegister `json:"meterValues"`
 }
 
-// DeviceInfoField benennt die Felder von values.DeviceInfo.
+// DeviceInfoField benennt die Felder von measurement.DeviceInfo.
 type DeviceInfoField string
 
 const (
@@ -26,6 +29,7 @@ const (
 	Firmware     DeviceInfoField = "firmware"
 )
 
+// IsValid meldet, ob f eines der bekannten Felder ist.
 func (f DeviceInfoField) IsValid() bool {
 	switch f {
 	case SerialNumber, Manufacturer, Model, Firmware:
@@ -34,14 +38,6 @@ func (f DeviceInfoField) IsValid() bool {
 		return false
 	}
 }
-
-// RegisterType wählt den Modbus-Funktionscode zum Lesen.
-type RegisterType string
-
-const (
-	HoldingRegister RegisterType = "holding" // FC 0x03
-	InputRegister   RegisterType = "input"   // FC 0x04
-)
 
 // ByteOrder benennt die Reihenfolge der Bytes A B C D eines 32-Bit-Werts,
 // wie es in Herstellerdokumentationen üblich ist. Für längere Werte wird
@@ -59,6 +55,7 @@ const (
 func (b ByteOrder) swapBytes() bool { return b == LittleEndian || b == BigEndianSwap }
 func (b ByteOrder) swapWords() bool { return b == LittleEndian || b == LittleEndianSwap }
 
+// IsValid meldet, ob b eine der bekannten Byte-Reihenfolgen ist.
 func (b ByteOrder) IsValid() bool {
 	switch b {
 	case BigEndian, LittleEndian, BigEndianSwap, LittleEndianSwap:
@@ -99,10 +96,10 @@ func (d DataType) registers() uint16 {
 
 // Register ist der gemeinsame Teil aller Registereinträge.
 type Register struct {
-	Address   uint16       `json:"address"`
-	Length    uint16       `json:"length"` // Anzahl 16-Bit-Register
-	ByteOrder ByteOrder    `json:"byteOrder,omitzero"`
-	Type      RegisterType `json:"registerType,omitzero"`
+	Address   uint16                 `json:"address"`
+	Length    uint16                 `json:"length"` // Anzahl 16-Bit-Register
+	ByteOrder ByteOrder              `json:"byteOrder,omitzero"`
+	Type      modbustcp.RegisterType `json:"registerType,omitzero"`
 }
 
 // order liefert die Byte-Reihenfolge, leer bedeutet Modbus-Standard ABCD.
@@ -114,21 +111,26 @@ func (r Register) order() ByteOrder {
 }
 
 // RegisterType liefert den Registertyp, leer bedeutet Holding-Register.
-func (r Register) RegisterType() RegisterType {
+func (r Register) RegisterType() modbustcp.RegisterType {
 	if r.Type == "" {
-		return HoldingRegister
+		return modbustcp.HoldingRegister
 	}
 	return r.Type
 }
 
+// Block liefert den Registerbereich, der für diesen Eintrag gelesen wird.
+func (r Register) Block() modbustcp.Block {
+	return modbustcp.Block{Type: r.RegisterType(), Address: r.Address, Count: r.Length}
+}
+
 func (r Register) validate() error {
-	if r.Length == 0 || r.Length > 125 {
-		return fmt.Errorf("length %d außerhalb 1..125", r.Length)
+	if r.Length == 0 || r.Length > modbustcp.MaxRegistersPerRead {
+		return fmt.Errorf("length %d außerhalb 1..%d", r.Length, modbustcp.MaxRegistersPerRead)
 	}
 	if !r.order().IsValid() {
 		return fmt.Errorf("unbekannte byteOrder %q", r.ByteOrder)
 	}
-	if t := r.RegisterType(); t != HoldingRegister && t != InputRegister {
+	if !r.RegisterType().IsValid() {
 		return fmt.Errorf("unbekannter registerType %q", r.Type)
 	}
 	return nil

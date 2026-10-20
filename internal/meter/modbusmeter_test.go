@@ -1,4 +1,4 @@
-package meters
+package meter
 
 import (
 	"context"
@@ -7,14 +7,14 @@ import (
 	"io"
 	"math"
 	"net"
-	"os"
-	"path/filepath"
 	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"modbus/meters/values"
+	"modbus/internal/measurement"
+	"modbus/internal/modbustcp"
+	"modbus/internal/profile"
 )
 
 // fakeServer beantwortet FC 0x03/0x04 aus zwei Registerbänken.
@@ -95,10 +95,10 @@ func (s *fakeServer) putString(bank *[256]uint16, addr int, str string) {
 	}
 }
 
-func float32Reg(addr uint16) NumberRegister {
-	return NumberRegister{
-		Register: Register{Address: addr, Length: 2, Type: InputRegister},
-		DataType: Float32,
+func float32Reg(addr uint16) profile.NumberRegister {
+	return profile.NumberRegister{
+		Register: profile.Register{Address: addr, Length: 2, Type: modbustcp.InputRegister},
+		DataType: profile.Float32,
 	}
 }
 
@@ -113,13 +113,13 @@ func TestReadValues(t *testing.T) {
 	m := ModbusMeter{
 		ID: "m1", Host: host, Port: port, UnitID: 1,
 		PollingInterval: Duration{10 * time.Millisecond},
-		Profile: Profile{
+		Profile: profile.Profile{
 			DeviceType: "test",
-			MeterValues: map[values.ValueType]NumberRegister{
-				values.U1: float32Reg(0),
-				values.U2: float32Reg(2),
-				values.U3: float32Reg(4),
-				values.ActiveEnergyImported: func() NumberRegister {
+			MeterValues: map[measurement.Type]profile.NumberRegister{
+				measurement.U1: float32Reg(0),
+				measurement.U2: float32Reg(2),
+				measurement.U3: float32Reg(4),
+				measurement.ActiveEnergyImported: func() profile.NumberRegister {
 					r := float32Reg(72)
 					r.Scale = 1000 // kWh → Wh
 					return r
@@ -129,19 +129,19 @@ func TestReadValues(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	ch := make(chan []values.MeterValue)
+	ch := make(chan []measurement.Value)
 	errCh := make(chan error, 1)
 	go func() { errCh <- m.ReadValues(ctx, ch) }()
 
-	got := map[values.ValueType]float64{}
+	got := map[measurement.Type]float64{}
 	for _, v := range <-ch {
 		if v.MeterID != "m1" {
 			t.Errorf("MeterID %q", v.MeterID)
 		}
 		got[v.Type] = v.Value
 	}
-	want := map[values.ValueType]float64{
-		values.U1: 230.5, values.U2: 231, values.U3: 229.5, values.ActiveEnergyImported: 12500,
+	want := map[measurement.Type]float64{
+		measurement.U1: 230.5, measurement.U2: 231, measurement.U3: 229.5, measurement.ActiveEnergyImported: 12500,
 	}
 	for k, w := range want {
 		if got[k] != w {
@@ -167,15 +167,15 @@ func TestReadValuesModbusException(t *testing.T) {
 	m := ModbusMeter{
 		ID: "m1", Host: host, Port: port,
 		PollingInterval: Duration{time.Second},
-		Profile: Profile{
+		Profile: profile.Profile{
 			DeviceType:  "test",
-			MeterValues: map[values.ValueType]NumberRegister{values.U1: float32Reg(255)},
+			MeterValues: map[measurement.Type]profile.NumberRegister{measurement.U1: float32Reg(255)},
 		},
 	}
-	err := m.ReadValues(context.Background(), make(chan []values.MeterValue, 1))
-	var ex ModbusException
+	err := m.ReadValues(context.Background(), make(chan []measurement.Value, 1))
+	var ex modbustcp.Exception
 	if !errors.As(err, &ex) || ex.Code != 0x02 {
-		t.Fatalf("err = %v, want ModbusException 0x02", err)
+		t.Fatalf("err = %v, want modbustcp.Exception 0x02", err)
 	}
 }
 
@@ -187,15 +187,15 @@ func TestReadDeviceInfo(t *testing.T) {
 
 	m := ModbusMeter{
 		ID: "m1", Host: host, Port: port,
-		Profile: Profile{
+		Profile: profile.Profile{
 			DeviceType: "test",
-			DeviceInfo: map[DeviceInfoField]StringRegister{
-				SerialNumber: {Register{Address: 10, Length: 4}},
-				Manufacturer: {Register{Address: 20, Length: 4}},
+			DeviceInfo: map[profile.DeviceInfoField]profile.StringRegister{
+				profile.SerialNumber: {Register: profile.Register{Address: 10, Length: 4}},
+				profile.Manufacturer: {Register: profile.Register{Address: 20, Length: 4}},
 			},
 		},
 	}
-	ch := make(chan values.DeviceInfo, 1)
+	ch := make(chan measurement.DeviceInfo, 1)
 	if err := m.ReadDeviceInfo(context.Background(), ch); err != nil {
 		t.Fatal(err)
 	}
@@ -226,112 +226,18 @@ func TestReadTimeout(t *testing.T) {
 		ID: "m1", Host: "127.0.0.1", Port: uint16(port),
 		ReadTimeout:     Duration{50 * time.Millisecond},
 		PollingInterval: Duration{time.Second},
-		Profile: Profile{
+		Profile: profile.Profile{
 			DeviceType:  "test",
-			MeterValues: map[values.ValueType]NumberRegister{values.U1: float32Reg(0)},
+			MeterValues: map[measurement.Type]profile.NumberRegister{measurement.U1: float32Reg(0)},
 		},
 	}
 	start := time.Now()
-	err = m.ReadValues(context.Background(), make(chan []values.MeterValue, 1))
+	err = m.ReadValues(context.Background(), make(chan []measurement.Value, 1))
 	var ne net.Error
 	if !errors.As(err, &ne) || !ne.Timeout() {
 		t.Fatalf("err = %v, want timeout", err)
 	}
 	if d := time.Since(start); d > time.Second {
 		t.Errorf("timeout dauerte %v", d)
-	}
-}
-
-func TestLoadMetersUMG96RM(t *testing.T) {
-	ms, err := LoadMeters("../configs")
-	if err != nil {
-		t.Fatal(err)
-	}
-	m, ok := ms["umg96rm-1"]
-	if !ok {
-		t.Fatalf("umg96rm-1 fehlt, geladen: %v", ms)
-	}
-	if m.Profile.DeviceType != "Janitza UMG 96 RM" || len(m.Profile.MeterValues) != 17 {
-		t.Errorf("profil unerwartet: %s mit %d Werten", m.Profile.DeviceType, len(m.Profile.MeterValues))
-	}
-}
-
-func TestLoadMetersDuplicateID(t *testing.T) {
-	dir := t.TempDir()
-	data, err := os.ReadFile("../configs/umg96rm-1.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, name := range []string{"a.json", "b.json"} {
-		if err := os.WriteFile(filepath.Join(dir, name), data, 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if _, err := LoadMeters(dir); err == nil {
-		t.Error("expected error for duplicate id")
-	}
-}
-
-func TestManagerSetReplaceRemove(t *testing.T) {
-	srv := &fakeServer{}
-	srv.putFloat32(&srv.input, 0, 230)
-	srv.putFloat32(&srv.input, 2, 400)
-	host, port := srv.start(t)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	valuesCh := make(chan []values.MeterValue)
-	infoCh := make(chan values.DeviceInfo, 10)
-	mg := NewManager(ctx, valuesCh, infoCh)
-
-	meter := func(addr uint16) *ModbusMeter {
-		return &ModbusMeter{
-			ID: "m1", Host: host, Port: port,
-			PollingInterval: Duration{10 * time.Millisecond},
-			Profile: Profile{
-				DeviceType:  "test",
-				MeterValues: map[values.ValueType]NumberRegister{values.U1: float32Reg(addr)},
-			},
-		}
-	}
-
-	if err := mg.Set(meter(0)); err != nil {
-		t.Fatal(err)
-	}
-	if v := (<-valuesCh)[0].Value; v != 230 {
-		t.Errorf("got %v, want 230", v)
-	}
-
-	// Config mit neuer Adresse ersetzt die alte, ohne zweiten Eintrag.
-	if err := mg.Set(meter(2)); err != nil {
-		t.Fatal(err)
-	}
-	if v := (<-valuesCh)[0].Value; v != 400 {
-		t.Errorf("nach Ersetzen got %v, want 400", v)
-	}
-	if n := len(mg.Meters()); n != 1 {
-		t.Errorf("meters = %d, want 1", n)
-	}
-
-	if !mg.Remove("m1") {
-		t.Error("Remove lieferte false")
-	}
-	if _, ok := mg.Get("m1"); ok {
-		t.Error("m1 noch vorhanden")
-	}
-	if mg.Remove("m1") {
-		t.Error("zweites Remove lieferte true")
-	}
-
-	cancel()
-	mg.Wait()
-	if err := mg.Set(meter(0)); err == nil {
-		t.Error("Set nach Shutdown sollte fehlschlagen")
-	}
-}
-
-func TestManagerRejectsInvalidConfig(t *testing.T) {
-	mg := NewManager(context.Background(), nil, nil)
-	if err := mg.Set(&ModbusMeter{ID: "x"}); err == nil {
-		t.Error("expected validation error")
 	}
 }

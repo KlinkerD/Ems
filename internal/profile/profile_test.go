@@ -1,10 +1,11 @@
-package meters
+package profile
 
 import (
 	"encoding/json"
 	"testing"
 
-	"modbus/meters/values"
+	"modbus/internal/measurement"
+	"modbus/internal/modbustcp"
 )
 
 func TestNumberRegisterDecodeFloat32ByteOrders(t *testing.T) {
@@ -44,7 +45,7 @@ func TestNumberRegisterDecodeScale(t *testing.T) {
 func TestNumberRegisterLengthMismatch(t *testing.T) {
 	r := NumberRegister{Register: Register{Length: 1}, DataType: Float32}
 	if _, err := r.Decode([]byte{0, 0}); err == nil {
-		t.Error("expected error for float32 with length 1")
+		t.Error("float32 mit length 1 sollte fehlschlagen")
 	}
 }
 
@@ -86,11 +87,11 @@ func TestProfileJSON(t *testing.T) {
 	if err := p.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	u1 := p.MeterValues[values.U1]
-	if u1.RegisterType() != InputRegister || u1.DataType != Float32 || u1.Length != 2 {
+	u1 := p.MeterValues[measurement.U1]
+	if u1.RegisterType() != modbustcp.InputRegister || u1.DataType != Float32 || u1.Length != 2 {
 		t.Errorf("U1 falsch geparst: %+v", u1)
 	}
-	if p.DeviceInfo[SerialNumber].RegisterType() != HoldingRegister {
+	if p.DeviceInfo[SerialNumber].RegisterType() != modbustcp.HoldingRegister {
 		t.Error("serialNumber sollte holding sein")
 	}
 }
@@ -98,9 +99,9 @@ func TestProfileJSON(t *testing.T) {
 func TestProfileValidateRejectsUnknownKeys(t *testing.T) {
 	p := Profile{
 		DeviceType:  "x",
-		MeterValues: map[values.ValueType]NumberRegister{"Foo": {Register: Register{Length: 1}, DataType: Uint16}},
+		MeterValues: map[measurement.Type]NumberRegister{"Foo": {Register: Register{Length: 1}, DataType: Uint16}},
 	}
 	if err := p.Validate(); err == nil {
-		t.Error("expected error for unknown meter value")
+		t.Error("unbekannter meterValue sollte fehlschlagen")
 	}
 }

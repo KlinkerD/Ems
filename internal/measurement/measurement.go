@@ -1,36 +1,39 @@
-package values
+// Package measurement enthält die Messwert- und Geräteinfo-Typen, die von den
+// Metern gelesen und über den Broker verschickt werden.
+package measurement
 
 import "time"
 
-// ValueType ist ein String, damit er in JSON, MQTT und Logs lesbar bleibt
+// Type ist ein String, damit er in JSON, MQTT und Logs lesbar bleibt
 // und das Umsortieren der Konstanten keine gespeicherten Daten verfälscht.
-type ValueType string
+type Type string
 
 const (
-	I1 ValueType = "I1"
-	I2 ValueType = "I2"
-	I3 ValueType = "I3"
+	I1 Type = "I1"
+	I2 Type = "I2"
+	I3 Type = "I3"
 
-	U1 ValueType = "U1"
-	U2 ValueType = "U2"
-	U3 ValueType = "U3"
+	U1 Type = "U1"
+	U2 Type = "U2"
+	U3 Type = "U3"
 
-	P1 ValueType = "P1"
-	P2 ValueType = "P2"
-	P3 ValueType = "P3"
+	P1 Type = "P1"
+	P2 Type = "P2"
+	P3 Type = "P3"
 
-	Q1 ValueType = "Q1"
-	Q2 ValueType = "Q2"
-	Q3 ValueType = "Q3"
+	Q1 Type = "Q1"
+	Q2 Type = "Q2"
+	Q3 Type = "Q3"
 
-	S1 ValueType = "S1"
-	S2 ValueType = "S2"
-	S3 ValueType = "S3"
+	S1 Type = "S1"
+	S2 Type = "S2"
+	S3 Type = "S3"
 
-	ActiveEnergyImported ValueType = "ActiveEnergyImported"
-	ActiveEnergyExported ValueType = "ActiveEnergyExported"
+	ActiveEnergyImported Type = "ActiveEnergyImported"
+	ActiveEnergyExported Type = "ActiveEnergyExported"
 )
 
+// Unit ist die physikalische Einheit eines Messwerts.
 type Unit string
 
 const (
@@ -45,8 +48,8 @@ const (
 
 // Unit liefert die Einheit, in der ein Wert dieses Typs vorliegt.
 // Ein leerer Rückgabewert bedeutet unbekannter Typ.
-func (v ValueType) Unit() Unit {
-	switch v {
+func (t Type) Unit() Unit {
+	switch t {
 	case I1, I2, I3:
 		return UnitA
 	case U1, U2, U3:
@@ -65,15 +68,15 @@ func (v ValueType) Unit() Unit {
 }
 
 // IsValid nutzt Unit(), damit neue Typen nur an einer Stelle gepflegt werden.
-func (v ValueType) IsValid() bool {
-	return v.Unit() != UnitNone
+func (t Type) IsValid() bool {
+	return t.Unit() != UnitNone
 }
 
-// MeterValue ist ein einzelner Messwert, so wie er weiterverschickt wird.
-type MeterValue struct {
+// Value ist ein einzelner Messwert, so wie er weiterverschickt wird.
+type Value struct {
 	MeterID   string    `json:"meterId"`
 	Timestamp time.Time `json:"timestamp"`
-	Type      ValueType `json:"type"`
+	Type      Type      `json:"type"`
 	Value     float64   `json:"value"`
 }
 

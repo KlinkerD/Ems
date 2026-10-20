@@ -1,10 +1,10 @@
-package meters
+package poller
 
 import (
 	"context"
 	"sync"
 
-	"modbus/meters/values"
+	"modbus/internal/measurement"
 )
 
 // Manager hält die aktiven Meter als map[ID] und startet bzw. stoppt ihre
@@ -12,8 +12,8 @@ import (
 // entfernt werden.
 type Manager struct {
 	ctx      context.Context
-	valuesCh chan<- []values.MeterValue
-	infoCh   chan<- values.DeviceInfo
+	valuesCh chan<- []measurement.Value
+	infoCh   chan<- measurement.DeviceInfo
 
 	mu      sync.Mutex
 	running map[string]*runningMeter
@@ -21,13 +21,13 @@ type Manager struct {
 }
 
 type runningMeter struct {
-	meter  PollableMeter
+	meter  Meter
 	cancel context.CancelFunc
 	done   chan struct{}
 }
 
 // NewManager erzeugt einen leeren Manager. Wird ctx abgebrochen, stoppen alle Meter.
-func NewManager(ctx context.Context, valuesCh chan<- []values.MeterValue, infoCh chan<- values.DeviceInfo) *Manager {
+func NewManager(ctx context.Context, valuesCh chan<- []measurement.Value, infoCh chan<- measurement.DeviceInfo) *Manager {
 	return &Manager{
 		ctx:      ctx,
 		valuesCh: valuesCh,
@@ -39,7 +39,7 @@ func NewManager(ctx context.Context, valuesCh chan<- []values.MeterValue, infoCh
 // Set startet den Meter oder ersetzt eine bestehende Config mit derselben ID.
 // Der alte Meter ist gestoppt, bevor der neue startet, damit nie zwei
 // Verbindungen zum selben Gerät offen sind. m darf danach nicht mehr verändert werden.
-func (mg *Manager) Set(m PollableMeter) error {
+func (mg *Manager) Set(m Meter) error {
 	if err := m.Validate(); err != nil {
 		return err
 	}
@@ -80,7 +80,7 @@ func (mg *Manager) stopLocked(id string) bool {
 }
 
 // Get liefert die aktive Config zu einer ID.
-func (mg *Manager) Get(id string) (PollableMeter, bool) {
+func (mg *Manager) Get(id string) (Meter, bool) {
 	mg.mu.Lock()
 	defer mg.mu.Unlock()
 	r, ok := mg.running[id]
@@ -91,10 +91,10 @@ func (mg *Manager) Get(id string) (PollableMeter, bool) {
 }
 
 // Meters liefert eine Kopie der aktiven map[ID]Config.
-func (mg *Manager) Meters() map[string]PollableMeter {
+func (mg *Manager) Meters() map[string]Meter {
 	mg.mu.Lock()
 	defer mg.mu.Unlock()
-	out := make(map[string]PollableMeter, len(mg.running))
+	out := make(map[string]Meter, len(mg.running))
 	for id, r := range mg.running {
 		out[id] = r.meter
 	}

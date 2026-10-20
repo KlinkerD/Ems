@@ -1,4 +1,4 @@
-package meters
+package meter
 
 import "time"
 
@@ -7,6 +7,7 @@ type Duration struct {
 	time.Duration
 }
 
+// UnmarshalText parst Angaben im Format von time.ParseDuration.
 func (d *Duration) UnmarshalText(b []byte) error {
 	v, err := time.ParseDuration(string(b))
 	if err != nil {
@@ -16,6 +17,7 @@ func (d *Duration) UnmarshalText(b []byte) error {
 	return nil
 }
 
+// MarshalText schreibt die Dauer im Format von time.Duration.String.
 func (d Duration) MarshalText() ([]byte, error) {
 	return []byte(d.String()), nil
 }

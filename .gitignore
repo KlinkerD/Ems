@@ -1,0 +1,25 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/modbus
+
+# Test- und Coverage-Ausgaben
+*.test
+*.out
+coverage.*
+*.coverprofile
+
+# Go workspace
+go.work
+go.work.sum
+
+# Lokale Zugangsdaten
+.env
+.env.*
+
+# Betriebssystem
+.DS_Store
+Thumbs.db
