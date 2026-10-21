@@ -2,6 +2,7 @@ package poller
 
 import (
 	"context"
+	"slices"
 	"sync"
 
 	"modbus/internal/measurement"
@@ -106,4 +107,18 @@ func (mg *Manager) Meters() map[string]Meter {
 // Wait blockiert, bis alle Meter-Goroutinen beendet sind (nach Abbruch von ctx).
 func (mg *Manager) Wait() {
 	mg.wg.Wait()
+}
+
+func (mg *Manager) DeleteMeters(Meters []string) []string {
+	var activeMeters = mg.Meters()
+	var deletedMeters = make([]string, 0)
+	for id := range activeMeters {
+		if !slices.Contains(Meters, id) {
+			deletedMeters = append(deletedMeters, id)
+		}
+	}
+	for _, id := range deletedMeters {
+		mg.Remove(id)
+	}
+	return deletedMeters
 }

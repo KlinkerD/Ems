@@ -41,6 +41,7 @@ type MeterIDs struct {
 // und abonniert Topics.
 type MessageHandler interface {
 	Publish(Message) error
+	Unsubscribe(topic Topic) error
 	Subscribe(topic Topic, handler func(Message)) error
 	Connect() error
 	Close()

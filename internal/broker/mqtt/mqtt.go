@@ -77,3 +77,14 @@ func (h *Handler) resubscribe(c paho.Client) {
 		c.Subscribe(string(t), 1, cb)
 	}
 }
+
+func (h *Handler) Unsubscribe(topic broker.Topic) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	_, ok := h.subs[topic]
+	if !ok {
+		return nil
+	}
+	delete(h.subs, topic)
+	return wait(h.client.Unsubscribe(string(topic)))
+}

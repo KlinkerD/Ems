@@ -95,3 +95,9 @@ type Error struct {
 	Message   string    `json:"message"`
 	Timestamp time.Time `json:"timestamp"`
 }
+
+type Status struct {
+	MeterID   string    `json:"meterId"`
+	Message   string    `json:"message"`
+	Timestamp time.Time `json:"timestamp"`
+}
