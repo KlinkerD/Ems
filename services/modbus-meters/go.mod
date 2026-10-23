@@ -2,7 +2,10 @@ module github.com/KlinkerD/Ems/services/modbus-meters
 
 go 1.27.1
 
-require github.com/eclipse/paho.mqtt.golang v1.5.1
+require (
+	github.com/KlinkerD/Ems/contracts v0.1.0
+	github.com/eclipse/paho.mqtt.golang v1.5.1
+)
 
 require (
 	github.com/gorilla/websocket v1.5.3 // indirect
