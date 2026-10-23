@@ -10,6 +10,7 @@ import (
 	paho "github.com/eclipse/paho.mqtt.golang"
 
 	"github.com/KlinkerD/Ems/broker"
+	"github.com/KlinkerD/Ems/contracts"
 )
 
 const timeout = 5 * time.Second
@@ -19,7 +20,7 @@ const timeout = 5 * time.Second
 type Handler struct {
 	client paho.Client
 	mu     sync.Mutex
-	subs   map[broker.Topic]paho.MessageHandler
+	subs   map[contracts.Topic]paho.MessageHandler
 }
 
 var _ broker.MessageHandler = (*Handler)(nil)
@@ -44,7 +45,7 @@ func New(cfg Config) (*Handler, error) {
 		return nil, errors.New("mqtt: ClientID fehlt")
 	}
 
-	h := &Handler{subs: map[broker.Topic]paho.MessageHandler{}}
+	h := &Handler{subs: map[contracts.Topic]paho.MessageHandler{}}
 	opts := paho.NewClientOptions().
 		AddBroker(cfg.BrokerURL).
 		SetClientID(cfg.ClientID).
@@ -83,9 +84,9 @@ func wait(t paho.Token) error {
 
 // Subscribe abonniert topic mit QoS 1. Ein erneuter Aufruf für dasselbe Topic
 // ersetzt den Handler.
-func (h *Handler) Subscribe(topic broker.Topic, handler func(broker.Message)) error {
+func (h *Handler) Subscribe(topic contracts.Topic, handler func(broker.Message)) error {
 	cb := func(_ paho.Client, msg paho.Message) {
-		handler(broker.Message{Topic: broker.Topic(msg.Topic()), Payload: msg.Payload()})
+		handler(broker.Message{Topic: contracts.Topic(msg.Topic()), Payload: msg.Payload()})
 	}
 	h.mu.Lock()
 	h.subs[topic] = cb
@@ -101,7 +102,7 @@ func (h *Handler) resubscribe(c paho.Client) {
 	}
 }
 
-func (h *Handler) Unsubscribe(topic broker.Topic) error {
+func (h *Handler) Unsubscribe(topic contracts.Topic) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	_, ok := h.subs[topic]
