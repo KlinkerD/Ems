@@ -2,9 +2,13 @@
 
 Monorepo für eigenständige Services rund um Energiezähler. Jeder Service ist ein
 eigenes Go-Modul mit eigenem `go.mod`, eigenem Dockerfile und eigener
-CI-Pipeline. Services sprechen nur über MQTT miteinander. Das Einzige, was sie
-teilen, ist der Schnittstellenvertrag in [contracts](contracts/): Topics und
-Payload-Typen, ohne Logik.
+CI-Pipeline. Services sprechen nur über MQTT miteinander. Geteilt werden nur
+zwei versionierte Bibliotheksmodule:
+
+- [contracts](contracts/): der Schnittstellenvertrag, also Topics und
+  Payload-Typen, ohne Logik.
+- [broker](broker/): die Anbindung an den Message-Broker (Interface
+  `MessageHandler` und die MQTT-Implementierung mit Paho), ohne fachliche Topics.
 
 ## Services
 
@@ -16,6 +20,10 @@ Payload-Typen, ohne Logik.
 
 ```
 go.work                       verbindet die Module für lokale Entwicklung und die IDE
+broker/
+  go.mod                      Broker-Modul, versioniert über Tags broker/vX.Y.Z
+  broker.go                   Topic, Message, Interface MessageHandler
+  mqtt/                       MQTT-Implementierung mit Paho
 contracts/
   go.mod                      Vertragsmodul, versioniert über Tags contracts/vX.Y.Z
   meter/                      Topics und Payloads rund um Zähler
@@ -27,6 +35,7 @@ services/
     Dockerfile
     README.md
 .github/workflows/
+  broker.yml                  läuft nur bei Änderungen unter broker/
   contracts.yml               läuft nur bei Änderungen unter contracts/
   modbus-meters.yml           läuft nur bei Änderungen unter services/modbus-meters/
 ```
@@ -89,3 +98,37 @@ Regeln:
 - Eine inkompatible Änderung bekommt eine neue Major-Version (`contracts/v2`)
   oder ein neues Topic.
 - `contracts` importiert nur die Standardbibliothek.
+
+## Broker-Modul
+
+Einbinden in einem Service:
+
+```powershell
+go get github.com/KlinkerD/Ems/broker@v0.2.0
+```
+
+```go
+import (
+	"github.com/KlinkerD/Ems/broker"
+	"github.com/KlinkerD/Ems/broker/mqtt"
+	contract "github.com/KlinkerD/Ems/contracts/meter"
+)
+
+h, err := mqtt.New(mqtt.Config{
+	BrokerURL: "tcp://localhost:1883",
+	ClientID:  "mein-service",
+	Username:  os.Getenv("MQTT_USERNAME"),
+	Password:  os.Getenv("MQTT_PASSWORD"),
+})
+if err != nil { ... }
+var msgHandler broker.MessageHandler = h
+msgHandler.Connect()
+msgHandler.Subscribe(broker.Topic(contract.TopicMeterIDs), func(m broker.Message) { ... })
+```
+
+Services importieren Paho nicht selbst, das steckt komplett in `broker/mqtt`.
+
+`broker` kennt keine fachlichen Topics und hängt nicht von `contracts` ab. Die
+Topic-Typen aus dem Vertrag werden beim Aufruf mit `broker.Topic(...)`
+umgewandelt. Neue Versionen werden wie beim Vertrag über Tags `broker/vX.Y.Z`
+veröffentlicht.

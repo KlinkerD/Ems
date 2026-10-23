@@ -14,12 +14,9 @@ import (
 	"os/signal"
 	"time"
 
-	paho "github.com/eclipse/paho.mqtt.golang"
-
+	"github.com/KlinkerD/Ems/broker"
+	"github.com/KlinkerD/Ems/broker/mqtt"
 	contract "github.com/KlinkerD/Ems/contracts/meter"
-
-	"github.com/KlinkerD/Ems/services/modbus-meters/internal/broker"
-	"github.com/KlinkerD/Ems/services/modbus-meters/internal/broker/mqtt"
 	"github.com/KlinkerD/Ems/services/modbus-meters/internal/meter"
 	"github.com/KlinkerD/Ems/services/modbus-meters/internal/poller"
 )
@@ -43,13 +40,17 @@ func main() {
 	statusCh := make(chan contract.Status)
 	manager := poller.NewManager(ctx, valuesCh, infoCh, errCh)
 
-	opts := paho.NewClientOptions().
-		AddBroker(*brokerURL).
-		SetClientID(*clientID).
-		SetUsername(os.Getenv("MQTT_USERNAME")).
-		SetPassword(os.Getenv("MQTT_PASSWORD"))
-
-	var msgHandler broker.MessageHandler = mqtt.New(opts)
+	mqttHandler, err := mqtt.New(mqtt.Config{
+		BrokerURL: *brokerURL,
+		ClientID:  *clientID,
+		Username:  os.Getenv("MQTT_USERNAME"),
+		Password:  os.Getenv("MQTT_PASSWORD"),
+	})
+	if err != nil {
+		slog.Error("ungültige mqtt-config", "err", err)
+		os.Exit(1)
+	}
+	var msgHandler broker.MessageHandler = mqttHandler
 	if err := msgHandler.Connect(); err != nil {
 		slog.Error("verbindung zum broker fehlgeschlagen", "broker", *brokerURL, "err", err)
 		os.Exit(1)
@@ -59,7 +60,7 @@ func main() {
 	// Muss laufen, bevor Meter starten, sonst blockieren sie beim ersten Senden.
 	go forward(ctx, msgHandler, valuesCh, infoCh, errCh, statusCh)
 
-	err := msgHandler.Subscribe(contract.TopicMeterIDs, func(m broker.Message) {
+	err = msgHandler.Subscribe(broker.Topic(contract.TopicMeterIDs), func(m broker.Message) {
 		handleConfig(m, msgHandler, manager, statusCh)
 	})
 	if err != nil {
@@ -104,7 +105,7 @@ func handleConfig(m broker.Message, msgHandler broker.MessageHandler, manager *p
 	}
 	deletedMeters := manager.DeleteMeters(cfg.Meters)
 	for _, id := range cfg.Meters {
-		topic := contract.TopicConfig.ForMeter(id)
+		topic := broker.Topic(contract.TopicConfig.ForMeter(id))
 		err := msgHandler.Subscribe(topic, func(m broker.Message) {
 			handleMeterConfig(m, manager, statusCh)
 		})
@@ -113,7 +114,7 @@ func handleConfig(m broker.Message, msgHandler broker.MessageHandler, manager *p
 		}
 	}
 	for _, id := range deletedMeters {
-		topic := contract.TopicConfig.ForMeter(id)
+		topic := broker.Topic(contract.TopicConfig.ForMeter(id))
 		err := msgHandler.Unsubscribe(topic)
 		if err != nil {
 			slog.Error("abmelden fehlgeschlagen", "topic", topic, "err", err)
@@ -145,13 +146,13 @@ func handleMeterConfig(m broker.Message, manager *poller.Manager, statusCh chan<
 // publishJSON serialisiert payload und veröffentlicht es auf topic. Fehler
 // werden geloggt, damit ein einzelner fehlgeschlagener Publish nicht das
 // Programm beendet.
-func publishJSON(msgHandler broker.MessageHandler, topic broker.Topic, payload any) {
+func publishJSON(msgHandler broker.MessageHandler, topic contract.Topic, payload any) {
 	data, err := json.Marshal(payload)
 	if err != nil {
 		slog.Error("json kodieren fehlgeschlagen", "topic", topic, "err", err)
 		return
 	}
-	if err := msgHandler.Publish(broker.Message{Topic: topic, Payload: data}); err != nil {
+	if err := msgHandler.Publish(broker.Message{Topic: broker.Topic(topic), Payload: data}); err != nil {
 		slog.Error("veröffentlichen fehlgeschlagen", "topic", topic, "err", err)
 		return
 	}

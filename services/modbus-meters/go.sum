@@ -1,3 +1,5 @@
+github.com/KlinkerD/Ems/broker v0.2.0 h1:IJ17YjKzJ7QBiUSEAD/NH+2PpbqSigf7KOjhh1pZUXU=
+github.com/KlinkerD/Ems/broker v0.2.0/go.mod h1:3xYu0k0GV6R8190Na3QhOA/u3x+F23y97Y8G9yl8pbw=
 github.com/KlinkerD/Ems/contracts v0.1.0 h1:zfg7j/d2fAIEqBNCP2beuQyYjbsJze3ghgU0bVyBmRk=
 github.com/KlinkerD/Ems/contracts v0.1.0/go.mod h1:83IrcF0Q7mcT64gOOoIDg2+aVrfM3N4QSnlrALO8VEU=
 github.com/eclipse/paho.mqtt.golang v1.5.1 h1:/VSOv3oDLlpqR2Epjn1Q7b2bSTplJIeV2ISgCl2W7nE=
