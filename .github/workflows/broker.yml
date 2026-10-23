@@ -1,0 +1,33 @@
+name: broker
+
+# Prüft das Broker-Modul (MQTT-Anbindung), sobald es sich ändert.
+# Eine neue Version wird per Tag veröffentlicht: git tag broker/vX.Y.Z
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - "broker/**"
+      - ".github/workflows/broker.yml"
+  pull_request:
+    branches: [ "master" ]
+    paths:
+      - "broker/**"
+      - ".github/workflows/broker.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: broker
+    env:
+      GOWORK: "off"   # wie ein externer Nutzer: ohne die anderen Module im Repo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: broker/go.mod
+      - run: go vet ./...
+      - run: go test ./...
