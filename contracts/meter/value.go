@@ -25,6 +25,10 @@ const (
 	S2 Type = "S2"
 	S3 Type = "S3"
 
+	COS_PHI_1 = "COS_PHI_1"
+	COS_PHI_2 = "COS_PHI_2"
+	COS_PHI_3 = "COS_PHI_3"
+
 	ActiveEnergyImported Type = "ActiveEnergyImported"
 	ActiveEnergyExported Type = "ActiveEnergyExported"
 )
