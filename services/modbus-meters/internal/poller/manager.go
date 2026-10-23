@@ -5,7 +5,7 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/KlinkerD/Ems/services/modbus-meters/internal/measurement"
+	contract "github.com/KlinkerD/Ems/contracts/meter"
 )
 
 // Manager hält die aktiven Meter als map[ID] und startet bzw. stoppt ihre
@@ -13,9 +13,9 @@ import (
 // entfernt werden.
 type Manager struct {
 	ctx      context.Context
-	valuesCh chan<- []measurement.Value
-	infoCh   chan<- measurement.DeviceInfo
-	errCh    chan<- measurement.Error
+	valuesCh chan<- []contract.Value
+	infoCh   chan<- contract.DeviceInfo
+	errCh    chan<- contract.Error
 
 	mu      sync.Mutex
 	running map[string]*runningMeter
@@ -29,7 +29,7 @@ type runningMeter struct {
 }
 
 // NewManager erzeugt einen leeren Manager. Wird ctx abgebrochen, stoppen alle Meter.
-func NewManager(ctx context.Context, valuesCh chan<- []measurement.Value, infoCh chan<- measurement.DeviceInfo, errCh chan<- measurement.Error) *Manager {
+func NewManager(ctx context.Context, valuesCh chan<- []contract.Value, infoCh chan<- contract.DeviceInfo, errCh chan<- contract.Error) *Manager {
 	return &Manager{
 		ctx:      ctx,
 		valuesCh: valuesCh,

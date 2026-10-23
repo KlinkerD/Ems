@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/KlinkerD/Ems/services/modbus-meters/internal/measurement"
+	contract "github.com/KlinkerD/Ems/contracts/meter"
 	"github.com/KlinkerD/Ems/services/modbus-meters/internal/modbustcp"
 )
 
@@ -99,7 +99,7 @@ func TestProfileValidateDeviceInfoDataType(t *testing.T) {
 		return Profile{
 			DeviceType:  "x",
 			DeviceInfo:  map[DeviceInfoField]StringRegister{SerialNumber: r},
-			MeterValues: map[measurement.Type]NumberRegister{measurement.U1: {Register: Register{Length: 2}, DataType: Float32}},
+			MeterValues: map[contract.Type]NumberRegister{contract.U1: {Register: Register{Length: 2}, DataType: Float32}},
 		}
 	}
 	if err := base(StringRegister{Register: Register{Length: 1}, DataType: Uint32}).Validate(); err == nil {
@@ -131,7 +131,7 @@ func TestProfileJSON(t *testing.T) {
 	if err := p.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	u1 := p.MeterValues[measurement.U1]
+	u1 := p.MeterValues[contract.U1]
 	if u1.RegisterType() != modbustcp.InputRegister || u1.DataType != Float32 || u1.Length != 2 {
 		t.Errorf("U1 falsch geparst: %+v", u1)
 	}
@@ -143,7 +143,7 @@ func TestProfileJSON(t *testing.T) {
 func TestProfileValidateRejectsUnknownKeys(t *testing.T) {
 	p := Profile{
 		DeviceType:  "x",
-		MeterValues: map[measurement.Type]NumberRegister{"Foo": {Register: Register{Length: 1}, DataType: Uint16}},
+		MeterValues: map[contract.Type]NumberRegister{"Foo": {Register: Register{Length: 1}, DataType: Uint16}},
 	}
 	if err := p.Validate(); err == nil {
 		t.Error("unbekannter meterValue sollte fehlschlagen")

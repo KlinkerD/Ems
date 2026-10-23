@@ -5,13 +5,13 @@ package poller
 import (
 	"context"
 
-	"github.com/KlinkerD/Ems/services/modbus-meters/internal/measurement"
+	contract "github.com/KlinkerD/Ems/contracts/meter"
 )
 
 // Meter enthält nur, was Manager und Run tatsächlich aufrufen.
 type Meter interface {
 	MeterID() string
 	Validate() error
-	ReadDeviceInfo(ctx context.Context, ch chan<- measurement.DeviceInfo) error
-	ReadValues(ctx context.Context, ch chan<- []measurement.Value) error
+	ReadDeviceInfo(ctx context.Context, ch chan<- contract.DeviceInfo) error
+	ReadValues(ctx context.Context, ch chan<- []contract.Value) error
 }

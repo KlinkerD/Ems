@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/KlinkerD/Ems/services/modbus-meters/internal/measurement"
+	contract "github.com/KlinkerD/Ems/contracts/meter"
 	"github.com/KlinkerD/Ems/services/modbus-meters/internal/modbustcp"
 	"github.com/KlinkerD/Ems/services/modbus-meters/internal/profile"
 )
@@ -58,7 +58,7 @@ func (m *ModbusMeter) closeConn(c *modbustcp.Client) {
 // sie gesammelt in ch. Der erste Poll erfolgt sofort. Die Funktion läuft, bis
 // ctx abgebrochen wird oder ein Lesefehler auftritt; das Neuverbinden
 // übernimmt der Aufrufer.
-func (m *ModbusMeter) ReadValues(ctx context.Context, ch chan<- []measurement.Value) error {
+func (m *ModbusMeter) ReadValues(ctx context.Context, ch chan<- []contract.Value) error {
 	if err := m.Validate(); err != nil {
 		return err
 	}
@@ -86,13 +86,13 @@ func (m *ModbusMeter) ReadValues(ctx context.Context, ch chan<- []measurement.Va
 		}
 
 		now := time.Now()
-		vals := make([]measurement.Value, 0, len(types))
+		vals := make([]contract.Value, 0, len(types))
 		for i, t := range types {
 			v, err := m.Profile.MeterValues[t].Decode(raw[i])
 			if err != nil {
 				return fmt.Errorf("meter %s: %s dekodieren: %w", m.ID, t, err)
 			}
-			vals = append(vals, measurement.Value{MeterID: m.ID, Timestamp: now, Type: t, Value: v})
+			vals = append(vals, contract.Value{MeterID: m.ID, Timestamp: now, Type: t, Value: v})
 		}
 
 		select {
@@ -111,8 +111,8 @@ func (m *ModbusMeter) ReadValues(ctx context.Context, ch chan<- []measurement.Va
 
 // ReadDeviceInfo liest die Geräteinfos einmalig und schickt sie in ch.
 // Felder ohne Register im Profil bleiben leer.
-func (m *ModbusMeter) ReadDeviceInfo(ctx context.Context, ch chan<- measurement.DeviceInfo) error {
-	info := measurement.DeviceInfo{MeterID: m.ID}
+func (m *ModbusMeter) ReadDeviceInfo(ctx context.Context, ch chan<- contract.DeviceInfo) error {
+	info := contract.DeviceInfo{MeterID: m.ID}
 
 	if len(m.Profile.DeviceInfo) > 0 {
 		fields := slices.Sorted(maps.Keys(m.Profile.DeviceInfo))

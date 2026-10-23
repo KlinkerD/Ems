@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/KlinkerD/Ems/services/modbus-meters/internal/measurement"
+	contract "github.com/KlinkerD/Ems/contracts/meter"
 	"github.com/KlinkerD/Ems/services/modbus-meters/internal/modbustcp"
 	"github.com/KlinkerD/Ems/services/modbus-meters/internal/profile"
 )
@@ -115,11 +115,11 @@ func TestReadValues(t *testing.T) {
 		PollingInterval: Duration{10 * time.Millisecond},
 		Profile: profile.Profile{
 			DeviceType: "test",
-			MeterValues: map[measurement.Type]profile.NumberRegister{
-				measurement.U1: float32Reg(0),
-				measurement.U2: float32Reg(2),
-				measurement.U3: float32Reg(4),
-				measurement.ActiveEnergyImported: func() profile.NumberRegister {
+			MeterValues: map[contract.Type]profile.NumberRegister{
+				contract.U1: float32Reg(0),
+				contract.U2: float32Reg(2),
+				contract.U3: float32Reg(4),
+				contract.ActiveEnergyImported: func() profile.NumberRegister {
 					r := float32Reg(72)
 					r.Scale = 1000 // kWh → Wh
 					return r
@@ -129,19 +129,19 @@ func TestReadValues(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	ch := make(chan []measurement.Value)
+	ch := make(chan []contract.Value)
 	errCh := make(chan error, 1)
 	go func() { errCh <- m.ReadValues(ctx, ch) }()
 
-	got := map[measurement.Type]float64{}
+	got := map[contract.Type]float64{}
 	for _, v := range <-ch {
 		if v.MeterID != "m1" {
 			t.Errorf("MeterID %q", v.MeterID)
 		}
 		got[v.Type] = v.Value
 	}
-	want := map[measurement.Type]float64{
-		measurement.U1: 230.5, measurement.U2: 231, measurement.U3: 229.5, measurement.ActiveEnergyImported: 12500,
+	want := map[contract.Type]float64{
+		contract.U1: 230.5, contract.U2: 231, contract.U3: 229.5, contract.ActiveEnergyImported: 12500,
 	}
 	for k, w := range want {
 		if got[k] != w {
@@ -169,10 +169,10 @@ func TestReadValuesModbusException(t *testing.T) {
 		PollingInterval: Duration{time.Second},
 		Profile: profile.Profile{
 			DeviceType:  "test",
-			MeterValues: map[measurement.Type]profile.NumberRegister{measurement.U1: float32Reg(255)},
+			MeterValues: map[contract.Type]profile.NumberRegister{contract.U1: float32Reg(255)},
 		},
 	}
-	err := m.ReadValues(context.Background(), make(chan []measurement.Value, 1))
+	err := m.ReadValues(context.Background(), make(chan []contract.Value, 1))
 	var ex modbustcp.Exception
 	if !errors.As(err, &ex) || ex.Code != 0x02 {
 		t.Fatalf("err = %v, want modbustcp.Exception 0x02", err)
@@ -195,7 +195,7 @@ func TestReadDeviceInfo(t *testing.T) {
 			},
 		},
 	}
-	ch := make(chan measurement.DeviceInfo, 1)
+	ch := make(chan contract.DeviceInfo, 1)
 	if err := m.ReadDeviceInfo(context.Background(), ch); err != nil {
 		t.Fatal(err)
 	}
@@ -228,11 +228,11 @@ func TestReadTimeout(t *testing.T) {
 		PollingInterval: Duration{time.Second},
 		Profile: profile.Profile{
 			DeviceType:  "test",
-			MeterValues: map[measurement.Type]profile.NumberRegister{measurement.U1: float32Reg(0)},
+			MeterValues: map[contract.Type]profile.NumberRegister{contract.U1: float32Reg(0)},
 		},
 	}
 	start := time.Now()
-	err = m.ReadValues(context.Background(), make(chan []measurement.Value, 1))
+	err = m.ReadValues(context.Background(), make(chan []contract.Value, 1))
 	var ne net.Error
 	if !errors.As(err, &ne) || !ne.Timeout() {
 		t.Fatalf("err = %v, want timeout", err)

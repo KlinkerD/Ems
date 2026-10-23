@@ -121,16 +121,20 @@ Direkt aneinanderliegende Register gleichen Typs werden in einer Anfrage gelesen
 ```
 main.go                 Einstieg: Flags, MQTT-Verbindung, Weiterleitung der Werte
 internal/
-  broker/               Topics, Nachrichten, Interface MessageHandler
+  broker/               Nachrichten, Interface MessageHandler
   broker/mqtt/          MQTT-Implementierung mit Paho
-  measurement/          Datentypen: Value, DeviceInfo, Type, Unit
   modbustcp/            minimaler Modbus-TCP-Client (nur Register lesen)
   profile/              Registerbeschreibung und Dekodierung
   meter/                Meter-Config laden/prüfen, Werte und Infos lesen
   poller/               Meter zur Laufzeit starten, ersetzen, stoppen, neu verbinden
 ```
 
-Abhängigkeiten laufen nur in eine Richtung: `poller` kennt nur `measurement`,
+Topics und Payload-Typen (`Value`, `DeviceInfo`, `Error`, `Status`, `Type`,
+`Unit`) kommen aus dem Vertragsmodul
+[contracts/meter](../../contracts/meter/), eingebunden als
+`github.com/KlinkerD/Ems/contracts`.
+
+Abhängigkeiten laufen nur in eine Richtung: `poller` kennt nur den Vertrag,
 `meter` baut auf `profile` und `modbustcp` auf.
 
 ## Entwicklung

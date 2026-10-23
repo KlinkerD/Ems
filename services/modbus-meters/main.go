@@ -16,9 +16,10 @@ import (
 
 	paho "github.com/eclipse/paho.mqtt.golang"
 
+	contract "github.com/KlinkerD/Ems/contracts/meter"
+
 	"github.com/KlinkerD/Ems/services/modbus-meters/internal/broker"
 	"github.com/KlinkerD/Ems/services/modbus-meters/internal/broker/mqtt"
-	"github.com/KlinkerD/Ems/services/modbus-meters/internal/measurement"
 	"github.com/KlinkerD/Ems/services/modbus-meters/internal/meter"
 	"github.com/KlinkerD/Ems/services/modbus-meters/internal/poller"
 )
@@ -36,10 +37,10 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	valuesCh := make(chan []measurement.Value)
-	infoCh := make(chan measurement.DeviceInfo)
-	errCh := make(chan measurement.Error)
-	statusCh := make(chan measurement.Status)
+	valuesCh := make(chan []contract.Value)
+	infoCh := make(chan contract.DeviceInfo)
+	errCh := make(chan contract.Error)
+	statusCh := make(chan contract.Status)
 	manager := poller.NewManager(ctx, valuesCh, infoCh, errCh)
 
 	opts := paho.NewClientOptions().
@@ -58,11 +59,11 @@ func main() {
 	// Muss laufen, bevor Meter starten, sonst blockieren sie beim ersten Senden.
 	go forward(ctx, msgHandler, valuesCh, infoCh, errCh, statusCh)
 
-	err := msgHandler.Subscribe(broker.TopicConfig, func(m broker.Message) {
+	err := msgHandler.Subscribe(contract.TopicMeterIDs, func(m broker.Message) {
 		handleConfig(m, msgHandler, manager, statusCh)
 	})
 	if err != nil {
-		slog.Error("abonnieren fehlgeschlagen", "topic", broker.TopicConfig, "err", err)
+		slog.Error("abonnieren fehlgeschlagen", "topic", contract.TopicMeterIDs, "err", err)
 		os.Exit(1)
 	}
 
@@ -72,20 +73,20 @@ func main() {
 
 // forward gibt Messwerte und Geräteinfos aus den Channels an den Broker
 // weiter, bis ctx abgebrochen wird.
-func forward(ctx context.Context, msgHandler broker.MessageHandler, valuesCh <-chan []measurement.Value, infoCh <-chan measurement.DeviceInfo, errCh <-chan measurement.Error, statusCh <-chan measurement.Status) {
+func forward(ctx context.Context, msgHandler broker.MessageHandler, valuesCh <-chan []contract.Value, infoCh <-chan contract.DeviceInfo, errCh <-chan contract.Error, statusCh <-chan contract.Status) {
 	for {
 		select {
 		case vals := <-valuesCh:
 			if len(vals) == 0 {
 				continue
 			}
-			publishJSON(msgHandler, broker.TopicMeterValues.ForMeter(vals[0].MeterID), vals)
+			publishJSON(msgHandler, contract.TopicValues.ForMeter(vals[0].MeterID), vals)
 		case info := <-infoCh:
-			publishJSON(msgHandler, broker.TopicMeterInfo.ForMeter(info.MeterID), info)
+			publishJSON(msgHandler, contract.TopicInfo.ForMeter(info.MeterID), info)
 		case err := <-errCh:
-			publishJSON(msgHandler, broker.TopicMeterError.ForMeter(err.MeterID), err)
+			publishJSON(msgHandler, contract.TopicError.ForMeter(err.MeterID), err)
 		case status := <-statusCh:
-			publishJSON(msgHandler, broker.TopicMeterStatus.ForMeter(status.MeterID), status)
+			publishJSON(msgHandler, contract.TopicStatus.ForMeter(status.MeterID), status)
 		case <-ctx.Done():
 			return
 		}
@@ -93,17 +94,17 @@ func forward(ctx context.Context, msgHandler broker.MessageHandler, valuesCh <-c
 }
 
 // handleConfig abonniert die Einzel-Config jedes Meters aus der Liste.
-func handleConfig(m broker.Message, msgHandler broker.MessageHandler, manager *poller.Manager, statusCh chan<- measurement.Status) {
+func handleConfig(m broker.Message, msgHandler broker.MessageHandler, manager *poller.Manager, statusCh chan<- contract.Status) {
 	now := time.Now()
 	slog.Info("config empfangen", "topic", m.Topic)
-	var cfg broker.MeterIDs
+	var cfg contract.MeterIDs
 	if err := json.Unmarshal(m.Payload, &cfg); err != nil {
 		slog.Error("ungültige config", "topic", m.Topic, "err", err)
 		return
 	}
 	deletedMeters := manager.DeleteMeters(cfg.Meters)
 	for _, id := range cfg.Meters {
-		topic := broker.TopicMeterConfig.ForMeter(id)
+		topic := contract.TopicConfig.ForMeter(id)
 		err := msgHandler.Subscribe(topic, func(m broker.Message) {
 			handleMeterConfig(m, manager, statusCh)
 		})
@@ -112,33 +113,33 @@ func handleConfig(m broker.Message, msgHandler broker.MessageHandler, manager *p
 		}
 	}
 	for _, id := range deletedMeters {
-		topic := broker.TopicMeterConfig.ForMeter(id)
+		topic := contract.TopicConfig.ForMeter(id)
 		err := msgHandler.Unsubscribe(topic)
 		if err != nil {
 			slog.Error("abmelden fehlgeschlagen", "topic", topic, "err", err)
 		}
-		statusCh <- measurement.Status{MeterID: id, Timestamp: now, Message: "Meter Deleted"}
+		statusCh <- contract.Status{MeterID: id, Timestamp: now, Message: "Meter Deleted"}
 	}
 }
 
 // handleMeterConfig startet den Meter oder ersetzt seine bisherige Config.
-func handleMeterConfig(m broker.Message, manager *poller.Manager, statusCh chan<- measurement.Status) {
+func handleMeterConfig(m broker.Message, manager *poller.Manager, statusCh chan<- contract.Status) {
 	var now = time.Now()
 	slog.Info("meter-config empfangen", "topic", m.Topic)
 	mm, err := meter.Parse(m.Payload)
 	if err != nil {
 		slog.Error("ungültige meter-config", "topic", m.Topic, "err", err)
-		statusCh <- measurement.Status{MeterID: mm.ID, Timestamp: now, Message: "Invalid Config"}
+		statusCh <- contract.Status{MeterID: mm.ID, Timestamp: now, Message: "Invalid Config"}
 		return
 	}
-	statusCh <- measurement.Status{MeterID: mm.ID, Timestamp: now, Message: "New Config Received"}
+	statusCh <- contract.Status{MeterID: mm.ID, Timestamp: now, Message: "New Config Received"}
 	if err := manager.Set(mm); err != nil {
 		slog.Error("meter starten fehlgeschlagen", "meter", mm.ID, "err", err)
-		statusCh <- measurement.Status{MeterID: mm.ID, Timestamp: now, Message: "Start Failed"}
+		statusCh <- contract.Status{MeterID: mm.ID, Timestamp: now, Message: "Start Failed"}
 		return
 	}
 	slog.Info("meter gestartet", "meter", mm.ID, "host", mm.Host, "interval", mm.PollingInterval)
-	statusCh <- measurement.Status{MeterID: mm.ID, Timestamp: now, Message: "Started"}
+	statusCh <- contract.Status{MeterID: mm.ID, Timestamp: now, Message: "Started"}
 }
 
 // publishJSON serialisiert payload und veröffentlicht es auf topic. Fehler

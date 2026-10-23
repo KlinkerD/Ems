@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/KlinkerD/Ems/services/modbus-meters/internal/measurement"
+	contract "github.com/KlinkerD/Ems/contracts/meter"
 )
 
 // fakeMeter schickt pro Verbindung einen Messwert und wartet dann auf Abbruch.
@@ -24,18 +24,18 @@ func (f *fakeMeter) Validate() error {
 	return nil
 }
 
-func (f *fakeMeter) ReadDeviceInfo(ctx context.Context, ch chan<- measurement.DeviceInfo) error {
+func (f *fakeMeter) ReadDeviceInfo(ctx context.Context, ch chan<- contract.DeviceInfo) error {
 	select {
-	case ch <- measurement.DeviceInfo{MeterID: f.id}:
+	case ch <- contract.DeviceInfo{MeterID: f.id}:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	}
 }
 
-func (f *fakeMeter) ReadValues(ctx context.Context, ch chan<- []measurement.Value) error {
+func (f *fakeMeter) ReadValues(ctx context.Context, ch chan<- []contract.Value) error {
 	select {
-	case ch <- []measurement.Value{{MeterID: f.id, Type: measurement.U1, Value: f.value}}:
+	case ch <- []contract.Value{{MeterID: f.id, Type: contract.U1, Value: f.value}}:
 	case <-ctx.Done():
 		return ctx.Err()
 	}
@@ -45,9 +45,9 @@ func (f *fakeMeter) ReadValues(ctx context.Context, ch chan<- []measurement.Valu
 
 func TestManagerSetReplaceRemove(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	valuesCh := make(chan []measurement.Value)
-	infoCh := make(chan measurement.DeviceInfo, 10)
-	errCh := make(chan measurement.Error, 10)
+	valuesCh := make(chan []contract.Value)
+	infoCh := make(chan contract.DeviceInfo, 10)
+	errCh := make(chan contract.Error, 10)
 	mg := NewManager(ctx, valuesCh, infoCh, errCh)
 
 	if err := mg.Set(&fakeMeter{id: "m1", value: 230}); err != nil {

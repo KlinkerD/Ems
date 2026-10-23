@@ -9,18 +9,18 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/KlinkerD/Ems/services/modbus-meters/internal/measurement"
+	contract "github.com/KlinkerD/Ems/contracts/meter"
 	"github.com/KlinkerD/Ems/services/modbus-meters/internal/modbustcp"
 )
 
 // Profile beschreibt herstellerabhängig, wo welcher Wert im Gerät liegt.
 type Profile struct {
-	DeviceType  string                              `json:"deviceType"`
-	DeviceInfo  map[DeviceInfoField]StringRegister  `json:"deviceInfo,omitempty"`
-	MeterValues map[measurement.Type]NumberRegister `json:"meterValues"`
+	DeviceType  string                             `json:"deviceType"`
+	DeviceInfo  map[DeviceInfoField]StringRegister `json:"deviceInfo,omitempty"`
+	MeterValues map[contract.Type]NumberRegister   `json:"meterValues"`
 }
 
-// DeviceInfoField benennt die Felder von measurement.DeviceInfo.
+// DeviceInfoField benennt die Felder von contract.DeviceInfo.
 type DeviceInfoField string
 
 const (
