@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/measurement"
-	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/modbustcp"
-	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/profile"
+	"github.com/KlinkerD/Ems/services/modbus-meters/internal/measurement"
+	"github.com/KlinkerD/Ems/services/modbus-meters/internal/modbustcp"
+	"github.com/KlinkerD/Ems/services/modbus-meters/internal/profile"
 )
 
 // fakeServer beantwortet FC 0x03/0x04 aus zwei Registerbänken.

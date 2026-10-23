@@ -8,7 +8,7 @@ import (
 
 	paho "github.com/eclipse/paho.mqtt.golang"
 
-	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/broker"
+	"github.com/KlinkerD/Ems/services/modbus-meters/internal/broker"
 )
 
 const timeout = 5 * time.Second

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/measurement"
+	"github.com/KlinkerD/Ems/services/modbus-meters/internal/measurement"
 )
 
 // fakeMeter schickt pro Verbindung einen Messwert und wartet dann auf Abbruch.

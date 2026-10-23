@@ -1,4 +1,4 @@
-# MeterService
+# Ems
 
 Monorepo für eigenständige Services rund um Energiezähler. Jeder Service ist ein
 eigenes Go-Modul mit eigenem `go.mod`, eigenem Dockerfile und eigener
@@ -44,7 +44,7 @@ docker build -t modbus-meters services/modbus-meters
 
 ## Neuen Service anlegen
 
-1. Ordner `services/<name>/` anlegen und dort `go mod init github.com/KlinkerD/MeterService/services/<name>` ausführen.
+1. Ordner `services/<name>/` anlegen und dort `go mod init github.com/KlinkerD/Ems/services/<name>` ausführen.
 2. Im Root `go work use ./services/<name>` ausführen.
 3. Dockerfile und README in den Service-Ordner legen.
 4. `.github/workflows/modbus-meters.yml` nach `<name>.yml` kopieren und Name, `paths` und `SERVICE` anpassen.

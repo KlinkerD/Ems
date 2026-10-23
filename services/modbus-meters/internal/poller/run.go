@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/measurement"
+	"github.com/KlinkerD/Ems/services/modbus-meters/internal/measurement"
 )
 
 // retryDelay ist die Wartezeit nach einem Verbindungs- oder Lesefehler.

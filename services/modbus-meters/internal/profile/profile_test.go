@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/measurement"
-	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/modbustcp"
+	"github.com/KlinkerD/Ems/services/modbus-meters/internal/measurement"
+	"github.com/KlinkerD/Ems/services/modbus-meters/internal/modbustcp"
 )
 
 func TestNumberRegisterDecodeFloat32ByteOrders(t *testing.T) {

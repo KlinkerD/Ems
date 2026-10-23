@@ -5,7 +5,7 @@ package poller
 import (
 	"context"
 
-	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/measurement"
+	"github.com/KlinkerD/Ems/services/modbus-meters/internal/measurement"
 )
 
 // Meter enthält nur, was Manager und Run tatsächlich aufrufen.

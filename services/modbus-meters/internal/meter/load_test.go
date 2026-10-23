@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/profile"
+	"github.com/KlinkerD/Ems/services/modbus-meters/internal/profile"
 )
 
 func TestLoadDirUMG96RM(t *testing.T) {
