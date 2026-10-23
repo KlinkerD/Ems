@@ -5,18 +5,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/KlinkerD/Ems/contracts"
 	"github.com/KlinkerD/Ems/contracts/meter"
 )
 
 func TestTopicForMeter(t *testing.T) {
 	tests := []struct {
 		name  string
-		topic meter.Topic
+		topic meter.ModbusTopic
 		id    string
-		want  meter.Topic
+		want  contracts.Topic
 	}{
-		{"mit Platzhalter", meter.TopicValues, "umg-1", "meter/umg-1/values"},
-		{"ohne Platzhalter", meter.TopicMeterIDs, "umg-1", "config"},
+		{"values", meter.TopicValues, "umg-1", "meter/umg-1/values"},
+		{"config", meter.TopicConfig, "umg-2", "meter/umg-2/config"},
+		{"ohne Platzhalter bleibt gleich", "config", "umg-1", "config"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
