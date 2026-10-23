@@ -1,0 +1,33 @@
+name: contracts
+
+# Prüft den Schnittstellenvertrag, sobald er sich ändert.
+# Eine neue Version wird per Tag veröffentlicht: git tag contracts/vX.Y.Z
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - "contracts/**"
+      - ".github/workflows/contracts.yml"
+  pull_request:
+    branches: [ "master" ]
+    paths:
+      - "contracts/**"
+      - ".github/workflows/contracts.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: contracts
+    env:
+      GOWORK: "off"   # wie ein externer Nutzer: ohne die anderen Module im Repo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: contracts/go.mod
+      - run: go vet ./...
+      - run: go test ./...
