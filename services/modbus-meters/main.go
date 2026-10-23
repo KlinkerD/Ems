@@ -16,11 +16,11 @@ import (
 
 	paho "github.com/eclipse/paho.mqtt.golang"
 
-	"modbus/internal/broker"
-	"modbus/internal/broker/mqtt"
-	"modbus/internal/measurement"
-	"modbus/internal/meter"
-	"modbus/internal/poller"
+	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/broker"
+	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/broker/mqtt"
+	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/measurement"
+	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/meter"
+	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/poller"
 )
 
 func main() {

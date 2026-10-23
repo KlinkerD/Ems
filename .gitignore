@@ -4,17 +4,13 @@
 *.dll
 *.so
 *.dylib
-/modbus
+/services/modbus-meters/modbus-meters
 
 # Test- und Coverage-Ausgaben
 *.test
 *.out
 coverage.*
 *.coverprofile
-
-# Go workspace
-go.work
-go.work.sum
 
 # Lokale Zugangsdaten
 .env

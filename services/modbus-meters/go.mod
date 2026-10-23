@@ -1,4 +1,4 @@
-module modbus
+module github.com/KlinkerD/MeterService/services/modbus-meters
 
 go 1.27.1
 

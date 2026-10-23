@@ -1,14 +1,22 @@
-name: Docker Image CI
+name: modbus-meters
 
+# Läuft nur, wenn sich dieser Service oder seine Pipeline ändert.
+# Für einen neuen Service diese Datei kopieren und SERVICE anpassen.
 on:
   push:
     branches: [ "master" ]
+    paths:
+      - "services/modbus-meters/**"
+      - ".github/workflows/modbus-meters.yml"
   pull_request:
     branches: [ "master" ]
+    paths:
+      - "services/modbus-meters/**"
+      - ".github/workflows/modbus-meters.yml"
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  SERVICE: modbus-meters
 
 jobs:
   build:
@@ -32,7 +40,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.SERVICE }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha
@@ -40,7 +48,7 @@ jobs:
       - name: Bauen und pushen
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: services/${{ env.SERVICE }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

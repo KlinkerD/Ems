@@ -13,9 +13,9 @@ import (
 	"strconv"
 	"time"
 
-	"modbus/internal/measurement"
-	"modbus/internal/modbustcp"
-	"modbus/internal/profile"
+	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/measurement"
+	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/modbustcp"
+	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/profile"
 )
 
 // defaultTimeout gilt pro Anfrage, wenn im Meter kein Timeout gesetzt ist.

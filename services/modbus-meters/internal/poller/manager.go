@@ -5,7 +5,7 @@ import (
 	"slices"
 	"sync"
 
-	"modbus/internal/measurement"
+	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/measurement"
 )
 
 // Manager hält die aktiven Meter als map[ID] und startet bzw. stoppt ihre

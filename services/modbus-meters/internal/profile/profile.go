@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"modbus/internal/measurement"
-	"modbus/internal/modbustcp"
+	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/measurement"
+	"github.com/KlinkerD/MeterService/services/modbus-meters/internal/modbustcp"
 )
 
 // Profile beschreibt herstellerabhängig, wo welcher Wert im Gerät liegt.
