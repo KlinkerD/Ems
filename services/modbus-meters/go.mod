@@ -3,8 +3,8 @@ module github.com/KlinkerD/Ems/services/modbus-meters
 go 1.27.1
 
 require (
-	github.com/KlinkerD/Ems/broker v0.2.0
-	github.com/KlinkerD/Ems/contracts v0.1.0
+	github.com/KlinkerD/Ems/broker v0.3.0
+	github.com/KlinkerD/Ems/contracts v0.2.0
 )
 
 require (

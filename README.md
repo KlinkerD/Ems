@@ -72,7 +72,7 @@ steht in `contracts/`.
 Einbinden in einem Service:
 
 ```powershell
-go get github.com/KlinkerD/Ems/contracts@v0.1.0
+go get github.com/KlinkerD/Ems/contracts@v0.2.0
 ```
 
 ```go
@@ -104,7 +104,7 @@ Regeln:
 Einbinden in einem Service:
 
 ```powershell
-go get github.com/KlinkerD/Ems/broker@v0.2.0
+go get github.com/KlinkerD/Ems/broker@v0.3.0
 ```
 
 ```go
@@ -123,12 +123,21 @@ h, err := mqtt.New(mqtt.Config{
 if err != nil { ... }
 var msgHandler broker.MessageHandler = h
 msgHandler.Connect()
-msgHandler.Subscribe(broker.Topic(contract.TopicMeterIDs), func(m broker.Message) { ... })
+msgHandler.Subscribe(contract.TopicMeterIDs, func(m broker.Message) { ... })
+msgHandler.Subscribe(contract.TopicConfig.ForMeter("umg-1"), func(m broker.Message) { ... })
 ```
 
 Services importieren Paho nicht selbst, das steckt komplett in `broker/mqtt`.
 
-`broker` kennt keine fachlichen Topics und hängt nicht von `contracts` ab. Die
-Topic-Typen aus dem Vertrag werden beim Aufruf mit `broker.Topic(...)`
-umgewandelt. Neue Versionen werden wie beim Vertrag über Tags `broker/vX.Y.Z`
-veröffentlicht.
+`broker` kennt keine fachlichen Topics. Es arbeitet nur mit dem gemeinsamen Typ
+`contracts.Topic` aus dem Root-Paket von `contracts`:
+
+- `contracts.Topic` ist ein konkretes Topic, z. B. `meter/umg-1/values`.
+- `meter.ModbusTopic` ist eine Vorlage mit `{id}`, definiert auf Basis von
+  `contracts.Topic`. `ForMeter(id)` liefert daraus ein `contracts.Topic`.
+- Topics ohne Platzhalter (z. B. `meter.TopicMeterIDs`) sind direkt ein
+  `contracts.Topic`.
+
+Abhängigkeiten laufen nur in eine Richtung: `broker` und `contracts/meter`
+nutzen `contracts`, kennen sich aber nicht gegenseitig. Neue Versionen werden
+wie beim Vertrag über Tags `broker/vX.Y.Z` veröffentlicht.
