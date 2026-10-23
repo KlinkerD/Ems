@@ -2,6 +2,7 @@
 package mqtt
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -23,17 +24,39 @@ type Handler struct {
 
 var _ broker.MessageHandler = (*Handler)(nil)
 
-// New erzeugt einen Handler. Auto-Reconnect und der OnConnect-Handler in opts
-// werden dabei überschrieben.
-func New(opts *paho.ClientOptions) *Handler {
+// Config enthält alles, was für die Verbindung zum MQTT-Broker nötig ist.
+type Config struct {
+	// BrokerURL ist die Adresse des Brokers, z. B. "tcp://localhost:1883".
+	BrokerURL string
+	// ClientID muss pro verbundenem Client eindeutig sein.
+	ClientID string
+	// Username und Password sind optional.
+	Username string
+	Password string
+}
+
+// New erzeugt einen Handler. Verbunden wird erst mit Connect.
+func New(cfg Config) (*Handler, error) {
+	if cfg.BrokerURL == "" {
+		return nil, errors.New("mqtt: BrokerURL fehlt")
+	}
+	if cfg.ClientID == "" {
+		return nil, errors.New("mqtt: ClientID fehlt")
+	}
+
 	h := &Handler{subs: map[broker.Topic]paho.MessageHandler{}}
-	opts.SetAutoReconnect(true)
-	// Jeder Callback in eigener Goroutine, damit Handler blockieren dürfen
-	// (z. B. Subscribe im Callback oder Manager.Set).
-	opts.SetOrderMatters(false)
-	opts.SetOnConnectHandler(h.resubscribe)
+	opts := paho.NewClientOptions().
+		AddBroker(cfg.BrokerURL).
+		SetClientID(cfg.ClientID).
+		SetUsername(cfg.Username).
+		SetPassword(cfg.Password).
+		SetAutoReconnect(true).
+		// Jeder Callback in eigener Goroutine, damit Handler blockieren dürfen
+		// (z. B. Subscribe im Callback).
+		SetOrderMatters(false).
+		SetOnConnectHandler(h.resubscribe)
 	h.client = paho.NewClient(opts)
-	return h
+	return h, nil
 }
 
 // Connect verbindet mit dem Broker.
