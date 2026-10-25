@@ -62,6 +62,11 @@ func (c *Config) Validate() error {
 	if c.PollingInterval.Duration <= 0 {
 		return fmt.Errorf("meter %s: pollingInterval muss > 0 sein", c.ID)
 	}
+	// 0 bedeutet DefaultTimeout. Ein negativer Wert ergäbe eine Deadline in
+	// der Vergangenheit, jede Anfrage würde sofort scheitern.
+	if c.ReadTimeout.Duration < 0 {
+		return fmt.Errorf("meter %s: timeout darf nicht negativ sein", c.ID)
+	}
 	if err := c.Profile.Validate(); err != nil {
 		return fmt.Errorf("meter %s: %w", c.ID, err)
 	}

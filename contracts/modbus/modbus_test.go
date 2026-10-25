@@ -2,6 +2,7 @@ package modbus_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -54,6 +55,7 @@ func TestConfigValidate(t *testing.T) {
 		{"ohne id", func(c *modbus.Config) { c.ID = contract.MeterID{} }},
 		{"ohne host", func(c *modbus.Config) { c.Host = "" }},
 		{"ohne pollingInterval", func(c *modbus.Config) { c.PollingInterval = modbus.Duration{} }},
+		{"negativer timeout", func(c *modbus.Config) { c.ReadTimeout = modbus.Duration{Duration: -time.Second} }},
 		{"ohne meterValues", func(c *modbus.Config) { c.Profile.MeterValues = nil }},
 	}
 	for _, tt := range tests {
@@ -161,5 +163,30 @@ func TestRegisterDefaults(t *testing.T) {
 	typ, addr, count := modbus.Register{Address: 7, Length: 2}.Range()
 	if typ != modbus.HoldingRegister || addr != 7 || count != 2 {
 		t.Errorf("Range() = %v %d %d", typ, addr, count)
+	}
+}
+
+// TestParseTimeout prüft, dass ein negativer timeout schon beim Einlesen
+// abgelehnt wird und 0 den Standardwert ergibt.
+func TestParseTimeout(t *testing.T) {
+	withTimeout := func(timeout string) []byte {
+		return []byte(strings.Replace(validConfig, `"pollingInterval": "1s",`, `"pollingInterval": "1s", "timeout": "`+timeout+`",`, 1))
+	}
+	if _, err := modbus.Parse(withTimeout("-500ms")); err == nil {
+		t.Error(`timeout "-500ms" sollte abgelehnt werden`)
+	}
+	c, err := modbus.Parse(withTimeout("0s"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Timeout() != modbus.DefaultTimeout {
+		t.Errorf("Timeout() = %v, want %v", c.Timeout(), modbus.DefaultTimeout)
+	}
+	c, err = modbus.Parse(withTimeout("250ms"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Timeout() != 250*time.Millisecond {
+		t.Errorf("Timeout() = %v, want 250ms", c.Timeout())
 	}
 }
