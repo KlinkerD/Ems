@@ -22,12 +22,15 @@ zwei versionierte Bibliotheksmodule:
 go.work                       verbindet die Module für lokale Entwicklung und die IDE
 broker/
   go.mod                      Broker-Modul, versioniert über Tags broker/vX.Y.Z
-  broker.go                   Topic, Message, Interface MessageHandler
+  broker.go                   Message, Interface MessageHandler
   mqtt/                       MQTT-Implementierung mit Paho
 contracts/
   go.mod                      Vertragsmodul, versioniert über Tags contracts/vX.Y.Z
-  meter/                      Topics und Payloads rund um Zähler
+  topic.go                    gemeinsamer Typ contracts.Topic
+  meter/                      Topics, MeterID und Payloads rund um Zähler
   modbus/                     Config und Profil eines Modbus-Zählers (nur Daten + Validate)
+  physics/                    Formeln zwischen elektrischen Größen
+  electricity/                Darstellung elektrischer Größen (Wert, Quelle)
 services/
   modbus-meters/
     go.mod                    eigenes Modul
@@ -73,7 +76,7 @@ steht in `contracts/`.
 Einbinden in einem Service:
 
 ```powershell
-go get github.com/KlinkerD/Ems/contracts@v0.2.0
+go get github.com/KlinkerD/Ems/contracts@v0.4.0
 ```
 
 ```go
@@ -87,10 +90,12 @@ dem `go.mod` des Service.
 Ablauf bei einer Änderung:
 
 1. `contracts/` ändern und die betroffenen Services im selben Branch anpassen.
-2. Nach dem Merge eine neue Version taggen und pushen:
-   `git tag contracts/v0.2.0` und `git push origin contracts/v0.2.0`.
+2. Nach dem Merge die nächste Version taggen und pushen, z. B. nach v0.4.0:
+   `git tag contracts/v0.5.0` und `git push origin contracts/v0.5.0`.
 3. In jedem Service, der die Änderung braucht:
-   `go get github.com/KlinkerD/Ems/contracts@v0.2.0`.
+   `go get github.com/KlinkerD/Ems/contracts@v0.5.0`.
+4. Vor dem Push jeden geänderten Service einmal ohne Workspace bauen, so wie
+   Docker es tut: `GOWORK=off go build ./...` im Service-Ordner.
 
 Regeln:
 
@@ -125,7 +130,7 @@ if err != nil { ... }
 var msgHandler broker.MessageHandler = h
 msgHandler.Connect()
 msgHandler.Subscribe(contract.TopicMeterIDs, func(m broker.Message) { ... })
-msgHandler.Subscribe(contract.TopicConfig.ForMeter("umg-1"), func(m broker.Message) { ... })
+msgHandler.Subscribe(contract.TopicConfig.ForMeter(contract.MustMeterID("umg-1")), func(m broker.Message) { ... })
 ```
 
 Services importieren Paho nicht selbst, das steckt komplett in `broker/mqtt`.

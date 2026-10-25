@@ -34,8 +34,8 @@ Zugangsdaten zum Broker kommen aus den Umgebungsvariablen `MQTT_USERNAME` und
 | `meter/{id}/config`  | rein     | Config eines einzelnen Zählers                  |
 | `meter/{id}/values`  | raus     | Messwerte, einmal pro Poll-Intervall            |
 | `meter/{id}/info`    | raus     | Geräteinfos, bei jedem Verbindungsaufbau        |
-| `meter/{id}/status`  | –        | reserviert, noch nicht verwendet                |
-| `meter/{id}/error`   | raus     | Erros beim auslesen                             |
+| `meter/{id}/status`  | raus     | Statusmeldungen bei Zustandsänderungen          |
+| `meter/{id}/error`   | raus     | Fehler beim Auslesen                            |
 
 Ablauf: Das Programm abonniert `config`. Kommt dort eine Liste von IDs, abonniert
 es `meter/{id}/config` für jede ID. Jede gültige Meter-Config startet den Zähler,
@@ -89,6 +89,7 @@ damit Configs bauen und prüfen, bevor er sie veröffentlicht.
 
 `meterValues` ordnet einem Messwert-Typ ein Register zu. Erlaubte Typen:
 `U1`–`U3` (V), `I1`–`I3` (A), `P1`–`P3` (W), `Q1`–`Q3` (var), `S1`–`S3` (VA),
+`COS_PHI_1`–`COS_PHI_3` (Einheit `1`),
 `ActiveEnergyImported`, `ActiveEnergyExported` (Wh).
 
 `deviceInfo` ist optional und kennt die Felder `serialNumber`, `manufacturer`,
