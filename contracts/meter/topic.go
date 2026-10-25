@@ -35,6 +35,6 @@ const (
 
 // ForMeter setzt die Meter-ID in den Platzhalter {id} ein und liefert das
 // konkrete Topic.
-func (t ModbusTopic) ForMeter(id string) contracts.Topic {
-	return contracts.Topic(strings.Replace(string(t), "{id}", id, 1))
+func (t ModbusTopic) ForMeter(id MeterID) contracts.Topic {
+	return contracts.Topic(strings.Replace(string(t), "{id}", id.value, 1))
 }

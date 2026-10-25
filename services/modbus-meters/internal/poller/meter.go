@@ -10,7 +10,7 @@ import (
 
 // Meter enthält nur, was Manager und Run tatsächlich aufrufen.
 type Meter interface {
-	MeterID() string
+	MeterID() contract.MeterID
 	Validate() error
 	ReadDeviceInfo(ctx context.Context, ch chan<- contract.DeviceInfo) error
 	ReadValues(ctx context.Context, ch chan<- []contract.Value) error

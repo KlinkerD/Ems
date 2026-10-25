@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/KlinkerD/Ems/broker"
@@ -131,7 +132,8 @@ func handleMeterConfig(m broker.Message, manager *poller.Manager, statusCh chan<
 	mm, err := meter.Parse(m.Payload)
 	if err != nil {
 		slog.Error("ungültige meter-config", "topic", m.Topic, "err", err)
-		statusCh <- contract.Status{MeterID: mm.ID, Timestamp: now, Message: "Invalid Config"}
+		// mm ist nil, die ID steht nur noch im Topic.
+		statusCh <- contract.Status{MeterID: meterIDFromConfigTopic(m.Topic), Timestamp: now, Message: "Invalid Config"}
 		return
 	}
 	statusCh <- contract.Status{MeterID: mm.ID, Timestamp: now, Message: "New Config Received"}
@@ -142,6 +144,22 @@ func handleMeterConfig(m broker.Message, manager *poller.Manager, statusCh chan<
 	}
 	slog.Info("meter gestartet", "meter", mm.ID, "host", mm.Host, "interval", mm.PollingInterval)
 	statusCh <- contract.Status{MeterID: mm.ID, Timestamp: now, Message: "Started"}
+}
+
+// meterIDFromConfigTopic liest die Meter-ID aus einem Topic nach der Vorlage
+// contract.TopicConfig. Passt das Topic nicht oder ist die ID ungültig, ist
+// das Ergebnis der Nullwert.
+func meterIDFromConfigTopic(topic contracts.Topic) contract.MeterID {
+	prefix, suffix, _ := strings.Cut(string(contract.TopicConfig), "{id}")
+	s := string(topic)
+	if len(s) <= len(prefix)+len(suffix) || !strings.HasPrefix(s, prefix) || !strings.HasSuffix(s, suffix) {
+		return contract.MeterID{}
+	}
+	id, err := contract.NewMeterID(s[len(prefix) : len(s)-len(suffix)])
+	if err != nil {
+		return contract.MeterID{}
+	}
+	return id
 }
 
 // publishJSON serialisiert payload und veröffentlicht es auf topic. Fehler

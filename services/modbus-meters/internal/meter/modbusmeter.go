@@ -27,14 +27,14 @@ const defaultPort = 502
 // ModbusMeter ist die Konfiguration eines einzelnen Zählers. Jeder Zähler hat
 // eine eigene Datei bzw. Nachricht, damit Configs einzeln ausgetauscht werden können.
 type ModbusMeter struct {
-	Version         int             `json:"version"`
-	ID              string          `json:"id"`
-	Host            string          `json:"host"`
-	Port            uint16          `json:"port"`
-	UnitID          uint8           `json:"unitId"`
-	PollingInterval Duration        `json:"pollingInterval"`
-	ReadTimeout     Duration        `json:"timeout,omitzero"`
-	Profile         profile.Profile `json:"profile"`
+	Version         int              `json:"version"`
+	ID              contract.MeterID `json:"id"`
+	Host            string           `json:"host"`
+	Port            uint16           `json:"port"`
+	UnitID          uint8            `json:"unitId"`
+	PollingInterval Duration         `json:"pollingInterval"`
+	ReadTimeout     Duration         `json:"timeout,omitzero"`
+	Profile         profile.Profile  `json:"profile"`
 }
 
 func (m *ModbusMeter) dial(ctx context.Context) (*modbustcp.Client, error) {
@@ -171,6 +171,6 @@ func (m *ModbusMeter) Timeout() Duration {
 }
 
 // MeterID liefert die eindeutige ID des Meters.
-func (m *ModbusMeter) MeterID() string {
+func (m *ModbusMeter) MeterID() contract.MeterID {
 	return m.ID
 }

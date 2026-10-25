@@ -13,12 +13,12 @@ func TestTopicForMeter(t *testing.T) {
 	tests := []struct {
 		name  string
 		topic meter.ModbusTopic
-		id    string
+		id    meter.MeterID
 		want  contracts.Topic
 	}{
-		{"values", meter.TopicValues, "umg-1", "meter/umg-1/values"},
-		{"config", meter.TopicConfig, "umg-2", "meter/umg-2/config"},
-		{"ohne Platzhalter bleibt gleich", "config", "umg-1", "config"},
+		{"values", meter.TopicValues, meter.MustMeterID("umg-1"), "meter/umg-1/values"},
+		{"config", meter.TopicConfig, meter.MustMeterID("umg-2"), "meter/umg-2/config"},
+		{"ohne Platzhalter bleibt gleich", "config", meter.MustMeterID("umg-1"), "config"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -40,6 +40,9 @@ func TestTypeUnit(t *testing.T) {
 		{meter.Q1, meter.UnitVar},
 		{meter.S3, meter.UnitVA},
 		{meter.ActiveEnergyExported, meter.UnitWh},
+		{meter.COS_PHI_1, meter.UnitDimensionless},
+		{meter.COS_PHI_2, meter.UnitDimensionless},
+		{meter.COS_PHI_3, meter.UnitDimensionless},
 		{"Unbekannt", meter.UnitNone},
 	}
 	for _, tt := range tests {
@@ -57,7 +60,7 @@ func TestTypeUnit(t *testing.T) {
 // TestValueJSON sichert die Feldnamen ab, auf die sich Empfänger verlassen.
 func TestValueJSON(t *testing.T) {
 	v := meter.Value{
-		MeterID:   "umg-1",
+		MeterID:   meter.MustMeterID("umg-1"),
 		Timestamp: time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC),
 		Type:      meter.U1,
 		Value:     230.5,

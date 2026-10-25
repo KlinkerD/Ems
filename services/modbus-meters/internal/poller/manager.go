@@ -18,7 +18,7 @@ type Manager struct {
 	errCh    chan<- contract.Error
 
 	mu      sync.Mutex
-	running map[string]*runningMeter
+	running map[contract.MeterID]*runningMeter
 	wg      sync.WaitGroup
 }
 
@@ -35,7 +35,7 @@ func NewManager(ctx context.Context, valuesCh chan<- []contract.Value, infoCh ch
 		valuesCh: valuesCh,
 		infoCh:   infoCh,
 		errCh:    errCh,
-		running:  make(map[string]*runningMeter),
+		running:  make(map[contract.MeterID]*runningMeter),
 	}
 }
 
@@ -65,13 +65,13 @@ func (mg *Manager) Set(m Meter) error {
 }
 
 // Remove stoppt den Meter und entfernt ihn. Liefert false, wenn die ID unbekannt ist.
-func (mg *Manager) Remove(id string) bool {
+func (mg *Manager) Remove(id contract.MeterID) bool {
 	mg.mu.Lock()
 	defer mg.mu.Unlock()
 	return mg.stopLocked(id)
 }
 
-func (mg *Manager) stopLocked(id string) bool {
+func (mg *Manager) stopLocked(id contract.MeterID) bool {
 	r, ok := mg.running[id]
 	if !ok {
 		return false
@@ -83,7 +83,7 @@ func (mg *Manager) stopLocked(id string) bool {
 }
 
 // Get liefert die aktive Config zu einer ID.
-func (mg *Manager) Get(id string) (Meter, bool) {
+func (mg *Manager) Get(id contract.MeterID) (Meter, bool) {
 	mg.mu.Lock()
 	defer mg.mu.Unlock()
 	r, ok := mg.running[id]
@@ -94,10 +94,10 @@ func (mg *Manager) Get(id string) (Meter, bool) {
 }
 
 // Meters liefert eine Kopie der aktiven map[ID]Config.
-func (mg *Manager) Meters() map[string]Meter {
+func (mg *Manager) Meters() map[contract.MeterID]Meter {
 	mg.mu.Lock()
 	defer mg.mu.Unlock()
-	out := make(map[string]Meter, len(mg.running))
+	out := make(map[contract.MeterID]Meter, len(mg.running))
 	for id, r := range mg.running {
 		out[id] = r.meter
 	}
@@ -109,9 +109,9 @@ func (mg *Manager) Wait() {
 	mg.wg.Wait()
 }
 
-func (mg *Manager) DeleteMeters(Meters []string) []string {
+func (mg *Manager) DeleteMeters(Meters []contract.MeterID) []contract.MeterID {
 	var activeMeters = mg.Meters()
-	var deletedMeters = make([]string, 0)
+	var deletedMeters = make([]contract.MeterID, 0)
 	for id := range activeMeters {
 		if !slices.Contains(Meters, id) {
 			deletedMeters = append(deletedMeters, id)

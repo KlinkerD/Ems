@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	contract "github.com/KlinkerD/Ems/contracts/meter"
 )
 
 // Parse dekodiert und prüft eine einzelne Meter-Config, z. B. aus einer
@@ -35,12 +37,12 @@ func Load(path string) (*ModbusMeter, error) {
 }
 
 // LoadDir liest alle *.json-Dateien eines Verzeichnisses, eine pro Meter.
-func LoadDir(dir string) (map[string]*ModbusMeter, error) {
+func LoadDir(dir string) (map[contract.MeterID]*ModbusMeter, error) {
 	paths, err := filepath.Glob(filepath.Join(dir, "*.json"))
 	if err != nil {
 		return nil, err
 	}
-	meters := make(map[string]*ModbusMeter, len(paths))
+	meters := make(map[contract.MeterID]*ModbusMeter, len(paths))
 	for _, p := range paths {
 		m, err := Load(p)
 		if err != nil {
@@ -57,7 +59,7 @@ func LoadDir(dir string) (map[string]*ModbusMeter, error) {
 // Validate prüft die Config, damit Fehler beim Laden auffallen
 // und nicht erst beim ersten Poll.
 func (m *ModbusMeter) Validate() error {
-	if m.ID == "" {
+	if m.ID.IsZero() {
 		return errors.New("id fehlt")
 	}
 	if m.Host == "" {

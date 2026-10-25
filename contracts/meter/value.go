@@ -25,9 +25,9 @@ const (
 	S2 Type = "S2"
 	S3 Type = "S3"
 
-	COS_PHI_1 = "COS_PHI_1"
-	COS_PHI_2 = "COS_PHI_2"
-	COS_PHI_3 = "COS_PHI_3"
+	COS_PHI_1 Type = "COS_PHI_1"
+	COS_PHI_2 Type = "COS_PHI_2"
+	COS_PHI_3 Type = "COS_PHI_3"
 
 	ActiveEnergyImported Type = "ActiveEnergyImported"
 	ActiveEnergyExported Type = "ActiveEnergyExported"
@@ -44,6 +44,8 @@ const (
 	UnitVar  Unit = "var"
 	UnitVA   Unit = "VA"
 	UnitWh   Unit = "Wh"
+	// UnitDimensionless gilt für Verhältnisgrößen wie cos φ (SI-Einheit 1).
+	UnitDimensionless Unit = "1"
 )
 
 // Unit liefert die Einheit, in der ein Wert dieses Typs vorliegt.
@@ -62,6 +64,8 @@ func (t Type) Unit() Unit {
 		return UnitVA
 	case ActiveEnergyImported, ActiveEnergyExported:
 		return UnitWh
+	case COS_PHI_1, COS_PHI_2, COS_PHI_3:
+		return UnitDimensionless
 	default:
 		return UnitNone
 	}

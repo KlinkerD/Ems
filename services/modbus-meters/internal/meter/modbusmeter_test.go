@@ -111,7 +111,7 @@ func TestReadValues(t *testing.T) {
 	host, port := srv.start(t)
 
 	m := ModbusMeter{
-		ID: "m1", Host: host, Port: port, UnitID: 1,
+		ID: contract.MustMeterID("m1"), Host: host, Port: port, UnitID: 1,
 		PollingInterval: Duration{10 * time.Millisecond},
 		Profile: profile.Profile{
 			DeviceType: "test",
@@ -135,7 +135,7 @@ func TestReadValues(t *testing.T) {
 
 	got := map[contract.Type]float64{}
 	for _, v := range <-ch {
-		if v.MeterID != "m1" {
+		if v.MeterID != contract.MustMeterID("m1") {
 			t.Errorf("MeterID %q", v.MeterID)
 		}
 		got[v.Type] = v.Value
@@ -165,7 +165,7 @@ func TestReadValuesModbusException(t *testing.T) {
 	srv := &fakeServer{}
 	host, port := srv.start(t)
 	m := ModbusMeter{
-		ID: "m1", Host: host, Port: port,
+		ID: contract.MustMeterID("m1"), Host: host, Port: port,
 		PollingInterval: Duration{time.Second},
 		Profile: profile.Profile{
 			DeviceType:  "test",
@@ -186,7 +186,7 @@ func TestReadDeviceInfo(t *testing.T) {
 	host, port := srv.start(t)
 
 	m := ModbusMeter{
-		ID: "m1", Host: host, Port: port,
+		ID: contract.MustMeterID("m1"), Host: host, Port: port,
 		Profile: profile.Profile{
 			DeviceType: "test",
 			DeviceInfo: map[profile.DeviceInfoField]profile.StringRegister{
@@ -200,7 +200,7 @@ func TestReadDeviceInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	info := <-ch
-	if info.MeterID != "m1" || info.SerialNumber != "SN12345" || info.Manufacturer != "Eastron" {
+	if info.MeterID != contract.MustMeterID("m1") || info.SerialNumber != "SN12345" || info.Manufacturer != "Eastron" {
 		t.Errorf("got %+v", info)
 	}
 }
@@ -223,7 +223,7 @@ func TestReadTimeout(t *testing.T) {
 	port, _ := strconv.Atoi(p)
 
 	m := ModbusMeter{
-		ID: "m1", Host: "127.0.0.1", Port: uint16(port),
+		ID: contract.MustMeterID("m1"), Host: "127.0.0.1", Port: uint16(port),
 		ReadTimeout:     Duration{50 * time.Millisecond},
 		PollingInterval: Duration{time.Second},
 		Profile: profile.Profile{

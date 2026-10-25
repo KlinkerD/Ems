@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/KlinkerD/Ems/contracts/electricity"
+	"github.com/KlinkerD/Ems/contracts/meter"
 )
 
 const eps = 1e-9
@@ -199,7 +200,7 @@ func TestPhaseMethods(t *testing.T) {
 // TestMeasurementJSON sichert die Feldnamen ab, auf die sich Empfänger verlassen.
 func TestMeasurementJSON(t *testing.T) {
 	msg := electricity.Measurement{
-		MeterID:   "umg-1",
+		MeterID:   meter.MustMeterID("umg-1"),
 		Timestamp: time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC),
 		Phases: []electricity.Phase{{
 			Index: 1,

@@ -10,12 +10,12 @@ import (
 
 // fakeMeter schickt pro Verbindung einen Messwert und wartet dann auf Abbruch.
 type fakeMeter struct {
-	id      string
+	id      contract.MeterID
 	value   float64
 	invalid bool
 }
 
-func (f *fakeMeter) MeterID() string { return f.id }
+func (f *fakeMeter) MeterID() contract.MeterID { return f.id }
 
 func (f *fakeMeter) Validate() error {
 	if f.invalid {
@@ -50,7 +50,7 @@ func TestManagerSetReplaceRemove(t *testing.T) {
 	errCh := make(chan contract.Error, 10)
 	mg := NewManager(ctx, valuesCh, infoCh, errCh)
 
-	if err := mg.Set(&fakeMeter{id: "m1", value: 230}); err != nil {
+	if err := mg.Set(&fakeMeter{id: contract.MustMeterID("m1"), value: 230}); err != nil {
 		t.Fatal(err)
 	}
 	if v := (<-valuesCh)[0].Value; v != 230 {
@@ -58,7 +58,7 @@ func TestManagerSetReplaceRemove(t *testing.T) {
 	}
 
 	// Neue Config mit derselben ID ersetzt die alte, ohne zweiten Eintrag.
-	if err := mg.Set(&fakeMeter{id: "m1", value: 400}); err != nil {
+	if err := mg.Set(&fakeMeter{id: contract.MustMeterID("m1"), value: 400}); err != nil {
 		t.Fatal(err)
 	}
 	if v := (<-valuesCh)[0].Value; v != 400 {
@@ -68,26 +68,26 @@ func TestManagerSetReplaceRemove(t *testing.T) {
 		t.Errorf("meters = %d, want 1", n)
 	}
 
-	if !mg.Remove("m1") {
+	if !mg.Remove(contract.MustMeterID("m1")) {
 		t.Error("Remove lieferte false")
 	}
-	if _, ok := mg.Get("m1"); ok {
+	if _, ok := mg.Get(contract.MustMeterID("m1")); ok {
 		t.Error("m1 noch vorhanden")
 	}
-	if mg.Remove("m1") {
+	if mg.Remove(contract.MustMeterID("m1")) {
 		t.Error("zweites Remove lieferte true")
 	}
 
 	cancel()
 	mg.Wait()
-	if err := mg.Set(&fakeMeter{id: "m1"}); err == nil {
+	if err := mg.Set(&fakeMeter{id: contract.MustMeterID("m1")}); err == nil {
 		t.Error("Set nach Shutdown sollte fehlschlagen")
 	}
 }
 
 func TestManagerRejectsInvalidConfig(t *testing.T) {
 	mg := NewManager(context.Background(), nil, nil, nil)
-	if err := mg.Set(&fakeMeter{id: "x", invalid: true}); err == nil {
+	if err := mg.Set(&fakeMeter{id: contract.MustMeterID("x"), invalid: true}); err == nil {
 		t.Error("ungültige config sollte abgelehnt werden")
 	}
 }

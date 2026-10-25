@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	contract "github.com/KlinkerD/Ems/contracts/meter"
 	"github.com/KlinkerD/Ems/services/modbus-meters/internal/profile"
 )
 
@@ -13,7 +14,7 @@ func TestLoadDirUMG96RM(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, ok := ms["umg96rm-1"]
+	m, ok := ms[contract.MustMeterID("umg96rm-1")]
 	if !ok {
 		t.Fatalf("umg96rm-1 fehlt, geladen: %v", ms)
 	}

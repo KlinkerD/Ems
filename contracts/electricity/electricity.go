@@ -5,6 +5,7 @@ package electricity
 import (
 	"time"
 
+	"github.com/KlinkerD/Ems/contracts/meter"
 	"github.com/KlinkerD/Ems/contracts/physics"
 )
 
@@ -30,9 +31,9 @@ type Phase struct {
 }
 
 type Measurement struct {
-	MeterID   string    `json:"meterId"`
-	Timestamp time.Time `json:"timestamp"`
-	Phases    []Phase   `json:"phases"`
+	MeterID   meter.MeterID `json:"meterId"`
+	Timestamp time.Time     `json:"timestamp"`
+	Phases    []Phase       `json:"phases"`
 }
 
 // Apparent liefert S: √(P² + Q²), sonst U · I.
