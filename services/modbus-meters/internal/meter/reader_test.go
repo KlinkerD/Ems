@@ -3,6 +3,7 @@ package meter
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"io"
 	"math"
@@ -342,4 +343,46 @@ func TestReadDeviceInfoErrorClosesConnection(t *testing.T) {
 	if r.conn != nil {
 		t.Error("verbindung nach Fehler noch offen")
 	}
+}
+
+// TestReadValuesSkipsNotFinite prüft, dass ein NaN-Register nur seinen
+// eigenen Wert kostet und nicht den ganzen Poll.
+func TestReadValuesSkipsNotFinite(t *testing.T) {
+	srv := &fakeServer{}
+	srv.putFloat32(&srv.input, 0, 230.5)
+	srv.putFloat32(&srv.input, 10, float32(math.NaN()))
+	host, port := srv.start(t)
+
+	r := NewReader(&modbus.Config{
+		ID: contract.MustMeterID("m1"), Host: host, Port: port,
+		PollingInterval: modbus.Duration{Duration: time.Hour},
+		Profile: modbus.Profile{
+			DeviceType: "test",
+			MeterValues: map[contract.Type]modbus.NumberRegister{
+				contract.U1: float32Reg(0),
+				contract.I1: float32Reg(10), // liefert NaN
+			},
+		},
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch := make(chan []contract.Value)
+	errCh := make(chan error, 1)
+	go func() { errCh <- r.ReadValues(ctx, ch) }()
+
+	select {
+	case vals := <-ch:
+		if len(vals) != 1 || vals[0].Type != contract.U1 || vals[0].Value != 230.5 {
+			t.Errorf("values = %+v, want nur U1 = 230.5", vals)
+		}
+		if _, err := json.Marshal(vals); err != nil {
+			t.Errorf("Werte lassen sich nicht als JSON senden: %v", err)
+		}
+	case err := <-errCh:
+		t.Fatalf("ReadValues brach ab: %v", err)
+	case <-time.After(time.Second):
+		t.Fatal("keine Werte erhalten")
+	}
+	cancel()
+	<-errCh
 }

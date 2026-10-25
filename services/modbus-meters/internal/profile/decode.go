@@ -5,6 +5,7 @@ package profile
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -23,12 +24,16 @@ type Ranger interface {
 // Block liefert den Registerbereich, der für r gelesen wird.
 func Block(r Ranger) modbustcp.Block {
 	typ, addr, count := r.Range()
-	// Die Werte von modbus.RegisterType und modbustcp.RegisterType sind gleich
-	// ("holding", "input"); der Transport soll den Vertrag nicht kennen müssen.
-	return modbustcp.Block{Type: modbustcp.RegisterType(typ), Address: addr, Count: count}
+	return modbustcp.Block{Type: typ, Address: addr, Count: count}
 }
 
+// ErrNotFinite meldet einen Messwert, der NaN oder ±Inf ist. Viele Zähler
+// liefern NaN für "Wert gerade nicht verfügbar". JSON kann solche Werte nicht
+// darstellen, deshalb dürfen sie nicht weitergeschickt werden.
+var ErrNotFinite = errors.New("wert ist NaN oder unendlich")
+
 // DecodeNumber wandelt die Rohbytes in einen float64 inklusive Skalierung.
+// Ist das Ergebnis NaN oder ±Inf, liefert es einen Fehler mit ErrNotFinite.
 func DecodeNumber(r modbus.NumberRegister, raw []byte) (float64, error) {
 	if err := r.Validate(); err != nil {
 		return 0, err
@@ -60,6 +65,9 @@ func DecodeNumber(r modbus.NumberRegister, raw []byte) (float64, error) {
 
 	if r.Scale != 0 {
 		v *= r.Scale
+	}
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return 0, fmt.Errorf("%w: %v", ErrNotFinite, v)
 	}
 	return v, nil
 }

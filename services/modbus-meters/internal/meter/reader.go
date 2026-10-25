@@ -5,6 +5,7 @@ package meter
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -164,6 +165,12 @@ func (r *Reader) ReadValues(ctx context.Context, ch chan<- []contract.Value) err
 		vals := make([]contract.Value, 0, len(types))
 		for i, t := range types {
 			v, err := profile.DecodeNumber(r.cfg.Profile.MeterValues[t], raw[i])
+			if errors.Is(err, profile.ErrNotFinite) {
+				// Nur diesen Wert auslassen, die übrigen gehen trotzdem raus.
+				// Debug statt Warn, weil manche Zähler das in jedem Poll tun.
+				slog.Debug("messwert ausgelassen", "meter", r.cfg.ID, "type", t, "err", err)
+				continue
+			}
 			if err != nil {
 				return fmt.Errorf("meter %s: %s dekodieren: %w", r.cfg.ID, t, err)
 			}

@@ -24,7 +24,14 @@ func Run(ctx context.Context, m Meter, valuesCh chan<- []contract.Value, infoCh 
 		if ctx.Err() != nil {
 			return
 		}
-		errCh <- contract.Error{Message: "could not connect to meter: " + err.Error(), MeterID: m.MeterID(), Timestamp: time.Now()}
+		// Nicht blockierend senden: Wird ctx genau jetzt abgebrochen, liest
+		// womöglich niemand mehr, und Run würde Manager.Wait/Set für immer
+		// aufhalten.
+		select {
+		case errCh <- contract.Error{Message: "could not connect to meter: " + err.Error(), MeterID: m.MeterID(), Timestamp: time.Now()}:
+		case <-ctx.Done():
+			return
+		}
 		slog.Warn("meter fehler, verbinde neu", "meter", m.MeterID(), "err", err, "retryIn", retryDelay)
 
 		select {

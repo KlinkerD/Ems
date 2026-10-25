@@ -4,7 +4,7 @@ go 1.27.1
 
 require (
 	github.com/KlinkerD/Ems/broker v0.3.0
-	github.com/KlinkerD/Ems/contracts v0.4.0
+	github.com/KlinkerD/Ems/contracts v0.5.0
 )
 
 require (

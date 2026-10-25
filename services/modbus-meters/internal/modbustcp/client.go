@@ -11,30 +11,18 @@ import (
 	"net"
 	"slices"
 	"time"
+
+	"github.com/KlinkerD/Ems/contracts/modbus"
 )
 
-// MaxRegistersPerRead ist das Limit der Modbus-Spezifikation für FC 0x03/0x04.
-const MaxRegistersPerRead = 125
-
-// RegisterType wählt den Modbus-Funktionscode zum Lesen.
-type RegisterType string
-
-const (
-	HoldingRegister RegisterType = "holding" // FC 0x03
-	InputRegister   RegisterType = "input"   // FC 0x04
-)
-
-// IsValid meldet, ob t ein unterstützter Registertyp ist.
-func (t RegisterType) IsValid() bool {
-	_, err := t.functionCode()
-	return err == nil
-}
-
-func (t RegisterType) functionCode() (byte, error) {
+// functionCode liefert den Modbus-Funktionscode zum Lesen von t. Registertypen
+// und das Lese-Limit (modbus.MaxRegistersPerRead) kommen aus dem Vertrag, damit
+// sie nur an einer Stelle definiert sind.
+func functionCode(t modbus.RegisterType) (byte, error) {
 	switch t {
-	case HoldingRegister:
+	case modbus.HoldingRegister:
 		return 0x03, nil
-	case InputRegister:
+	case modbus.InputRegister:
 		return 0x04, nil
 	default:
 		return 0, fmt.Errorf("unbekannter registerType %q", t)
@@ -43,7 +31,7 @@ func (t RegisterType) functionCode() (byte, error) {
 
 // Block ist ein zusammenhängender Bereich von Count Registern ab Address.
 type Block struct {
-	Type    RegisterType
+	Type    modbus.RegisterType
 	Address uint16
 	Count   uint16
 }
@@ -87,13 +75,13 @@ func (c *Client) Close() error {
 // readRegisters liest count Register ab addr und liefert die Rohbytes.
 // Nach einem Fehler ist der Zustand der Verbindung unklar, sie sollte
 // dann geschlossen werden.
-func (c *Client) readRegisters(ctx context.Context, typ RegisterType, addr, count uint16) ([]byte, error) {
-	fc, err := typ.functionCode()
+func (c *Client) readRegisters(ctx context.Context, typ modbus.RegisterType, addr, count uint16) ([]byte, error) {
+	fc, err := functionCode(typ)
 	if err != nil {
 		return nil, err
 	}
-	if count == 0 || count > MaxRegistersPerRead {
-		return nil, fmt.Errorf("count %d außerhalb 1..%d", count, MaxRegistersPerRead)
+	if count == 0 || count > modbus.MaxRegistersPerRead {
+		return nil, fmt.Errorf("count %d außerhalb 1..%d", count, modbus.MaxRegistersPerRead)
 	}
 
 	deadline := time.Now().Add(c.timeout)
@@ -181,7 +169,7 @@ func (c *Client) ReadAll(ctx context.Context, blocks []Block) ([][]byte, error) 
 		for ; j < len(order); j++ {
 			b := blocks[order[j]]
 			bEnd := int(b.Address) + int(b.Count)
-			if b.Type != typ || int(b.Address) > end || max(end, bEnd)-start > MaxRegistersPerRead {
+			if b.Type != typ || int(b.Address) > end || max(end, bEnd)-start > modbus.MaxRegistersPerRead {
 				break
 			}
 			end = max(end, bEnd)

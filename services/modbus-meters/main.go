@@ -64,7 +64,7 @@ func main() {
 	go forward(ctx, msgHandler, valuesCh, infoCh, errCh, statusCh)
 
 	err = msgHandler.Subscribe(contract.TopicMeterIDs, func(m broker.Message) {
-		handleConfig(m, msgHandler, manager, statusCh)
+		handleConfig(ctx, m, msgHandler, manager, statusCh)
 	})
 	if err != nil {
 		slog.Error("abonnieren fehlgeschlagen", "topic", contract.TopicMeterIDs, "err", err)
@@ -98,7 +98,7 @@ func forward(ctx context.Context, msgHandler broker.MessageHandler, valuesCh <-c
 }
 
 // handleConfig abonniert die Einzel-Config jedes Meters aus der Liste.
-func handleConfig(m broker.Message, msgHandler broker.MessageHandler, manager *poller.Manager, statusCh chan<- contract.Status) {
+func handleConfig(ctx context.Context, m broker.Message, msgHandler broker.MessageHandler, manager *poller.Manager, statusCh chan<- contract.Status) {
 	now := time.Now()
 	slog.Info("config empfangen", "topic", m.Topic)
 	var cfg contract.MeterIDs
@@ -110,7 +110,7 @@ func handleConfig(m broker.Message, msgHandler broker.MessageHandler, manager *p
 	for _, id := range cfg.Meters {
 		topic := contract.TopicConfig.ForMeter(id)
 		err := msgHandler.Subscribe(topic, func(m broker.Message) {
-			handleMeterConfig(m, manager, statusCh)
+			handleMeterConfig(ctx, m, manager, statusCh)
 		})
 		if err != nil {
 			slog.Error("abonnieren fehlgeschlagen", "topic", topic, "err", err)
@@ -122,29 +122,46 @@ func handleConfig(m broker.Message, msgHandler broker.MessageHandler, manager *p
 		if err != nil {
 			slog.Error("abmelden fehlgeschlagen", "topic", topic, "err", err)
 		}
-		statusCh <- contract.Status{MeterID: id, Timestamp: now, Message: "Meter Deleted"}
+		sendStatus(ctx, statusCh, contract.Status{MeterID: id, Timestamp: now, Message: "Meter Deleted"})
 	}
 }
 
 // handleMeterConfig startet den Meter oder ersetzt seine bisherige Config.
-func handleMeterConfig(m broker.Message, manager *poller.Manager, statusCh chan<- contract.Status) {
+func handleMeterConfig(ctx context.Context, m broker.Message, manager *poller.Manager, statusCh chan<- contract.Status) {
 	var now = time.Now()
 	slog.Info("meter-config empfangen", "topic", m.Topic)
 	cfg, err := modbus.Parse(m.Payload)
 	if err != nil {
 		slog.Error("ungültige meter-config", "topic", m.Topic, "err", err)
-		// cfg ist nil, die ID steht nur noch im Topic.
-		statusCh <- contract.Status{MeterID: meterIDFromConfigTopic(m.Topic), Timestamp: now, Message: "Invalid Config"}
+		// cfg ist nil, die ID steht nur noch im Topic. Ist sie dort nicht
+		// lesbar, gibt es kein sinnvolles Status-Topic ("meter//status"),
+		// dann bleibt es beim Log.
+		id := meterIDFromConfigTopic(m.Topic)
+		if id.IsZero() {
+			slog.Warn("status nicht gesendet, meter-id im topic unlesbar", "topic", m.Topic)
+			return
+		}
+		sendStatus(ctx, statusCh, contract.Status{MeterID: id, Timestamp: now, Message: "Invalid Config"})
 		return
 	}
-	statusCh <- contract.Status{MeterID: cfg.ID, Timestamp: now, Message: "New Config Received"}
+	sendStatus(ctx, statusCh, contract.Status{MeterID: cfg.ID, Timestamp: now, Message: "New Config Received"})
 	if err := manager.Set(meter.NewReader(cfg)); err != nil {
 		slog.Error("meter starten fehlgeschlagen", "meter", cfg.ID, "err", err)
-		statusCh <- contract.Status{MeterID: cfg.ID, Timestamp: now, Message: "Start Failed"}
+		sendStatus(ctx, statusCh, contract.Status{MeterID: cfg.ID, Timestamp: now, Message: "Start Failed"})
 		return
 	}
 	slog.Info("meter gestartet", "meter", cfg.ID, "host", cfg.Host, "interval", cfg.PollingInterval)
-	statusCh <- contract.Status{MeterID: cfg.ID, Timestamp: now, Message: "Started"}
+	sendStatus(ctx, statusCh, contract.Status{MeterID: cfg.ID, Timestamp: now, Message: "Started"})
+}
+
+// sendStatus schickt s an forward, gibt aber auf, wenn ctx abgebrochen ist.
+// Die Handler laufen in MQTT-Callbacks; nach dem Beenden liest forward nicht
+// mehr, und ein blockierendes Senden würde den Callback für immer aufhalten.
+func sendStatus(ctx context.Context, statusCh chan<- contract.Status, s contract.Status) {
+	select {
+	case statusCh <- s:
+	case <-ctx.Done():
+	}
 }
 
 // meterIDFromConfigTopic liest die Meter-ID aus einem Topic nach der Vorlage
