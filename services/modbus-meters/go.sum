@@ -1,7 +1,7 @@
 github.com/KlinkerD/Ems/broker v0.3.0 h1:UEWppAWHMY007w+7CLfLo4bkO7KhhgDPIzRLnIq1UCw=
 github.com/KlinkerD/Ems/broker v0.3.0/go.mod h1:HM1MCmthitLszgfqhVBugeWop0siqjeHMpr2VFAcgWY=
-github.com/KlinkerD/Ems/contracts v0.2.0 h1:MkHfdWYz7ZuPtaIgtXXbPfoSjk85uvD4ljZ07OJsyEk=
-github.com/KlinkerD/Ems/contracts v0.2.0/go.mod h1:83IrcF0Q7mcT64gOOoIDg2+aVrfM3N4QSnlrALO8VEU=
+github.com/KlinkerD/Ems/contracts v0.3.0 h1:AvyogjTsUhPtQAagLL2oMcVqMiN1xw9pQX8yS94we+w=
+github.com/KlinkerD/Ems/contracts v0.3.0/go.mod h1:83IrcF0Q7mcT64gOOoIDg2+aVrfM3N4QSnlrALO8VEU=
 github.com/eclipse/paho.mqtt.golang v1.5.1 h1:/VSOv3oDLlpqR2Epjn1Q7b2bSTplJIeV2ISgCl2W7nE=
 github.com/eclipse/paho.mqtt.golang v1.5.1/go.mod h1:1/yJCneuyOoCOzKSsOTUc0AJfpsItBGWvYpBLimhArU=
 github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=
