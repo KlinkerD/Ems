@@ -19,6 +19,7 @@ import (
 	"github.com/KlinkerD/Ems/broker/mqtt"
 	"github.com/KlinkerD/Ems/contracts"
 	contract "github.com/KlinkerD/Ems/contracts/meter"
+	"github.com/KlinkerD/Ems/contracts/modbus"
 	"github.com/KlinkerD/Ems/services/modbus-meters/internal/meter"
 	"github.com/KlinkerD/Ems/services/modbus-meters/internal/poller"
 )
@@ -129,21 +130,21 @@ func handleConfig(m broker.Message, msgHandler broker.MessageHandler, manager *p
 func handleMeterConfig(m broker.Message, manager *poller.Manager, statusCh chan<- contract.Status) {
 	var now = time.Now()
 	slog.Info("meter-config empfangen", "topic", m.Topic)
-	mm, err := meter.Parse(m.Payload)
+	cfg, err := modbus.Parse(m.Payload)
 	if err != nil {
 		slog.Error("ungültige meter-config", "topic", m.Topic, "err", err)
-		// mm ist nil, die ID steht nur noch im Topic.
+		// cfg ist nil, die ID steht nur noch im Topic.
 		statusCh <- contract.Status{MeterID: meterIDFromConfigTopic(m.Topic), Timestamp: now, Message: "Invalid Config"}
 		return
 	}
-	statusCh <- contract.Status{MeterID: mm.ID, Timestamp: now, Message: "New Config Received"}
-	if err := manager.Set(mm); err != nil {
-		slog.Error("meter starten fehlgeschlagen", "meter", mm.ID, "err", err)
-		statusCh <- contract.Status{MeterID: mm.ID, Timestamp: now, Message: "Start Failed"}
+	statusCh <- contract.Status{MeterID: cfg.ID, Timestamp: now, Message: "New Config Received"}
+	if err := manager.Set(meter.NewReader(cfg)); err != nil {
+		slog.Error("meter starten fehlgeschlagen", "meter", cfg.ID, "err", err)
+		statusCh <- contract.Status{MeterID: cfg.ID, Timestamp: now, Message: "Start Failed"}
 		return
 	}
-	slog.Info("meter gestartet", "meter", mm.ID, "host", mm.Host, "interval", mm.PollingInterval)
-	statusCh <- contract.Status{MeterID: mm.ID, Timestamp: now, Message: "Started"}
+	slog.Info("meter gestartet", "meter", cfg.ID, "host", cfg.Host, "interval", cfg.PollingInterval)
+	statusCh <- contract.Status{MeterID: cfg.ID, Timestamp: now, Message: "Started"}
 }
 
 // meterIDFromConfigTopic liest die Meter-ID aus einem Topic nach der Vorlage

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	contract "github.com/KlinkerD/Ems/contracts/meter"
-	"github.com/KlinkerD/Ems/services/modbus-meters/internal/profile"
+	"github.com/KlinkerD/Ems/contracts/modbus"
 )
 
 func TestLoadDirUMG96RM(t *testing.T) {
@@ -21,10 +21,10 @@ func TestLoadDirUMG96RM(t *testing.T) {
 	if m.Profile.DeviceType != "Janitza UMG 96 RM" || len(m.Profile.MeterValues) != 17 {
 		t.Errorf("profil unerwartet: %s mit %d Werten", m.Profile.DeviceType, len(m.Profile.MeterValues))
 	}
-	if sn := m.Profile.DeviceInfo[profile.SerialNumber]; sn.Address != 754 || sn.DataType != profile.Uint32 {
+	if sn := m.Profile.DeviceInfo[modbus.SerialNumber]; sn.Address != 754 || sn.DataType != modbus.Uint32 {
 		t.Errorf("serialNumber unerwartet: %+v", sn)
 	}
-	if fw := m.Profile.DeviceInfo[profile.Firmware]; fw.Address != 750 || fw.DataType != profile.Int16 {
+	if fw := m.Profile.DeviceInfo[modbus.Firmware]; fw.Address != 750 || fw.DataType != modbus.Int16 {
 		t.Errorf("firmware unerwartet: %+v", fw)
 	}
 }

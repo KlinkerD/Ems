@@ -13,14 +13,15 @@ import (
 	"time"
 
 	contract "github.com/KlinkerD/Ems/contracts/meter"
+	"github.com/KlinkerD/Ems/contracts/modbus"
 	"github.com/KlinkerD/Ems/services/modbus-meters/internal/modbustcp"
-	"github.com/KlinkerD/Ems/services/modbus-meters/internal/profile"
 )
 
 // fakeServer beantwortet FC 0x03/0x04 aus zwei Registerbänken.
 type fakeServer struct {
 	holding, input [256]uint16
 	requests       atomic.Int32
+	conns          atomic.Int32
 }
 
 func (s *fakeServer) start(t *testing.T) (host string, port uint16) {
@@ -36,6 +37,7 @@ func (s *fakeServer) start(t *testing.T) (host string, port uint16) {
 			if err != nil {
 				return
 			}
+			s.conns.Add(1)
 			go s.serve(conn)
 		}
 	}()
@@ -95,10 +97,10 @@ func (s *fakeServer) putString(bank *[256]uint16, addr int, str string) {
 	}
 }
 
-func float32Reg(addr uint16) profile.NumberRegister {
-	return profile.NumberRegister{
-		Register: profile.Register{Address: addr, Length: 2, Type: modbustcp.InputRegister},
-		DataType: profile.Float32,
+func float32Reg(addr uint16) modbus.NumberRegister {
+	return modbus.NumberRegister{
+		Address: addr, Length: 2, Type: modbus.InputRegister,
+		DataType: modbus.Float32,
 	}
 }
 
@@ -110,23 +112,23 @@ func TestReadValues(t *testing.T) {
 	srv.putFloat32(&srv.input, 72, 12.5)
 	host, port := srv.start(t)
 
-	m := ModbusMeter{
+	m := NewReader(&modbus.Config{
 		ID: contract.MustMeterID("m1"), Host: host, Port: port, UnitID: 1,
-		PollingInterval: Duration{10 * time.Millisecond},
-		Profile: profile.Profile{
+		PollingInterval: modbus.Duration{Duration: 10 * time.Millisecond},
+		Profile: modbus.Profile{
 			DeviceType: "test",
-			MeterValues: map[contract.Type]profile.NumberRegister{
+			MeterValues: map[contract.Type]modbus.NumberRegister{
 				contract.U1: float32Reg(0),
 				contract.U2: float32Reg(2),
 				contract.U3: float32Reg(4),
-				contract.ActiveEnergyImported: func() profile.NumberRegister {
+				contract.ActiveEnergyImported: func() modbus.NumberRegister {
 					r := float32Reg(72)
 					r.Scale = 1000 // kWh → Wh
 					return r
 				}(),
 			},
 		},
-	}
+	})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := make(chan []contract.Value)
@@ -164,14 +166,14 @@ func TestReadValues(t *testing.T) {
 func TestReadValuesModbusException(t *testing.T) {
 	srv := &fakeServer{}
 	host, port := srv.start(t)
-	m := ModbusMeter{
+	m := NewReader(&modbus.Config{
 		ID: contract.MustMeterID("m1"), Host: host, Port: port,
-		PollingInterval: Duration{time.Second},
-		Profile: profile.Profile{
+		PollingInterval: modbus.Duration{Duration: time.Second},
+		Profile: modbus.Profile{
 			DeviceType:  "test",
-			MeterValues: map[contract.Type]profile.NumberRegister{contract.U1: float32Reg(255)},
+			MeterValues: map[contract.Type]modbus.NumberRegister{contract.U1: float32Reg(255)},
 		},
-	}
+	})
 	err := m.ReadValues(context.Background(), make(chan []contract.Value, 1))
 	var ex modbustcp.Exception
 	if !errors.As(err, &ex) || ex.Code != 0x02 {
@@ -185,16 +187,16 @@ func TestReadDeviceInfo(t *testing.T) {
 	srv.putString(&srv.holding, 20, "Eastron ")
 	host, port := srv.start(t)
 
-	m := ModbusMeter{
+	m := NewReader(&modbus.Config{
 		ID: contract.MustMeterID("m1"), Host: host, Port: port,
-		Profile: profile.Profile{
+		Profile: modbus.Profile{
 			DeviceType: "test",
-			DeviceInfo: map[profile.DeviceInfoField]profile.StringRegister{
-				profile.SerialNumber: {Register: profile.Register{Address: 10, Length: 4}},
-				profile.Manufacturer: {Register: profile.Register{Address: 20, Length: 4}},
+			DeviceInfo: map[modbus.DeviceInfoField]modbus.StringRegister{
+				modbus.SerialNumber: {Address: 10, Length: 4},
+				modbus.Manufacturer: {Address: 20, Length: 4},
 			},
 		},
-	}
+	})
 	ch := make(chan contract.DeviceInfo, 1)
 	if err := m.ReadDeviceInfo(context.Background(), ch); err != nil {
 		t.Fatal(err)
@@ -222,15 +224,15 @@ func TestReadTimeout(t *testing.T) {
 	_, p, _ := net.SplitHostPort(ln.Addr().String())
 	port, _ := strconv.Atoi(p)
 
-	m := ModbusMeter{
+	m := NewReader(&modbus.Config{
 		ID: contract.MustMeterID("m1"), Host: "127.0.0.1", Port: uint16(port),
-		ReadTimeout:     Duration{50 * time.Millisecond},
-		PollingInterval: Duration{time.Second},
-		Profile: profile.Profile{
+		ReadTimeout:     modbus.Duration{Duration: 50 * time.Millisecond},
+		PollingInterval: modbus.Duration{Duration: time.Second},
+		Profile: modbus.Profile{
 			DeviceType:  "test",
-			MeterValues: map[contract.Type]profile.NumberRegister{contract.U1: float32Reg(0)},
+			MeterValues: map[contract.Type]modbus.NumberRegister{contract.U1: float32Reg(0)},
 		},
-	}
+	})
 	start := time.Now()
 	err = m.ReadValues(context.Background(), make(chan []contract.Value, 1))
 	var ne net.Error
@@ -239,5 +241,105 @@ func TestReadTimeout(t *testing.T) {
 	}
 	if d := time.Since(start); d > time.Second {
 		t.Errorf("timeout dauerte %v", d)
+	}
+}
+
+// TestReaderSharesConnection prüft den Ablauf aus poller.Run: Geräteinfo und
+// Messwerte laufen über dieselbe Verbindung, nach einem Fehler wird neu
+// verbunden.
+func TestReaderSharesConnection(t *testing.T) {
+	srv := &fakeServer{}
+	srv.putString(&srv.holding, 10, "SN1\x00")
+	srv.putFloat32(&srv.input, 0, 230)
+	host, port := srv.start(t)
+
+	r := NewReader(&modbus.Config{
+		ID: contract.MustMeterID("m1"), Host: host, Port: port,
+		PollingInterval: modbus.Duration{Duration: time.Hour},
+		Profile: modbus.Profile{
+			DeviceType: "test",
+			DeviceInfo: map[modbus.DeviceInfoField]modbus.StringRegister{
+				modbus.SerialNumber: {Address: 10, Length: 2},
+			},
+			MeterValues: map[contract.Type]modbus.NumberRegister{contract.U1: float32Reg(0)},
+		},
+	})
+
+	// Eine Verbindungsrunde wie in poller.Run, beendet durch ctx.
+	round := func() {
+		t.Helper()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		infoCh := make(chan contract.DeviceInfo, 1)
+		if err := r.ReadDeviceInfo(ctx, infoCh); err != nil {
+			t.Fatalf("ReadDeviceInfo: %v", err)
+		}
+		if info := <-infoCh; info.SerialNumber != "SN1" {
+			t.Errorf("SerialNumber = %q, want SN1", info.SerialNumber)
+		}
+		valCh := make(chan []contract.Value)
+		errCh := make(chan error, 1)
+		go func() { errCh <- r.ReadValues(ctx, valCh) }()
+		if vals := <-valCh; len(vals) != 1 || vals[0].Value != 230 {
+			t.Errorf("values = %+v", vals)
+		}
+		cancel()
+		if err := <-errCh; !errors.Is(err, context.Canceled) {
+			t.Errorf("ReadValues err = %v, want context.Canceled", err)
+		}
+	}
+
+	round()
+	if n := srv.conns.Load(); n != 1 {
+		t.Fatalf("verbindungen nach erster Runde: %d, want 1", n)
+	}
+
+	// Nach dem Ende von ReadValues ist die Verbindung zu, die nächste Runde
+	// verbindet neu.
+	round()
+	if n := srv.conns.Load(); n != 2 {
+		t.Fatalf("verbindungen nach zweiter Runde: %d, want 2", n)
+	}
+}
+
+// TestReadDeviceInfoWithoutRegisters prüft, dass ohne Geräteinfo-Register im
+// Profil nicht verbunden wird.
+func TestReadDeviceInfoWithoutRegisters(t *testing.T) {
+	r := NewReader(&modbus.Config{
+		ID: contract.MustMeterID("m1"), Host: "127.0.0.1", Port: 1,
+		Profile: modbus.Profile{DeviceType: "test"},
+	})
+	ch := make(chan contract.DeviceInfo, 1)
+	if err := r.ReadDeviceInfo(context.Background(), ch); err != nil {
+		t.Fatal(err)
+	}
+	if info := <-ch; info.MeterID != contract.MustMeterID("m1") {
+		t.Errorf("got %+v", info)
+	}
+	if r.conn != nil {
+		t.Error("verbindung offen, obwohl keine Geräteinfo-Register")
+	}
+}
+
+// TestReadDeviceInfoErrorClosesConnection prüft, dass nach einem Lesefehler
+// keine halb kaputte Verbindung offen bleibt.
+func TestReadDeviceInfoErrorClosesConnection(t *testing.T) {
+	srv := &fakeServer{}
+	host, port := srv.start(t)
+	r := NewReader(&modbus.Config{
+		ID: contract.MustMeterID("m1"), Host: host, Port: port,
+		Profile: modbus.Profile{
+			DeviceType: "test",
+			DeviceInfo: map[modbus.DeviceInfoField]modbus.StringRegister{
+				// Adresse außerhalb der Registerbank → Modbus-Exception.
+				modbus.SerialNumber: {Address: 255, Length: 4},
+			},
+		},
+	})
+	if err := r.ReadDeviceInfo(context.Background(), make(chan contract.DeviceInfo, 1)); err == nil {
+		t.Fatal("err = nil, want Fehler")
+	}
+	if r.conn != nil {
+		t.Error("verbindung nach Fehler noch offen")
 	}
 }

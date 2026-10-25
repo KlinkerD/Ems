@@ -27,6 +27,7 @@ broker/
 contracts/
   go.mod                      Vertragsmodul, versioniert über Tags contracts/vX.Y.Z
   meter/                      Topics und Payloads rund um Zähler
+  modbus/                     Config und Profil eines Modbus-Zählers (nur Daten + Validate)
 services/
   modbus-meters/
     go.mod                    eigenes Modul

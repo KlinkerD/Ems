@@ -71,6 +71,9 @@ Retain-Flag veröffentlicht werden, damit sie nach einem Neustart sofort ankomme
 
 Ein vollständiges Beispiel liegt in
 [internal/meter/testdata/umg96rm-1.json](internal/meter/testdata/umg96rm-1.json).
+Die Typen dazu (`modbus.Config`, `modbus.Profile` usw.) und ihre Prüfung liegen im
+Vertrag [contracts/modbus](../../contracts/modbus/). Ein anderer Service kann
+damit Configs bauen und prüfen, bevor er sie veröffentlicht.
 
 | Feld              | Pflicht | Bedeutung                                              |
 |-------------------|---------|--------------------------------------------------------|
@@ -122,15 +125,17 @@ Direkt aneinanderliegende Register gleichen Typs werden in einer Anfrage gelesen
 main.go                 Einstieg: Flags, MQTT-Verbindung, Weiterleitung der Werte
 internal/
   modbustcp/            minimaler Modbus-TCP-Client (nur Register lesen)
-  profile/              Registerbeschreibung und Dekodierung
-  meter/                Meter-Config laden/prüfen, Werte und Infos lesen
+  profile/              Rohbytes eines Registers dekodieren, Lesebereich bestimmen
+  meter/                Reader (eine Verbindung, Geräteinfos und Werte lesen),
+                        Configs aus Dateien laden
   poller/               Meter zur Laufzeit starten, ersetzen, stoppen, neu verbinden
 ```
 
 Topics und Payload-Typen (`Value`, `DeviceInfo`, `Error`, `Status`, `Type`,
 `Unit`) kommen aus dem Vertragsmodul
-[contracts/meter](../../contracts/meter/), eingebunden als
-`github.com/KlinkerD/Ems/contracts`. Die MQTT-Anbindung kommt aus dem Modul
+[contracts/meter](../../contracts/meter/), die Meter-Config (`Config`,
+`Profile`, Register-Typen) aus [contracts/modbus](../../contracts/modbus/),
+beides eingebunden als `github.com/KlinkerD/Ems/contracts`. Die MQTT-Anbindung kommt aus dem Modul
 [broker](../../broker/), eingebunden als `github.com/KlinkerD/Ems/broker`.
 
 Abhängigkeiten laufen nur in eine Richtung: `poller` kennt nur den Vertrag,
